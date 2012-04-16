@@ -10,6 +10,7 @@
 #   1: devkitARM
 #   2: devkitPPC
 #   3: devkitPSP
+#   4: devkitSH4
 #---------------------------------------------------------------------------------
 BUILD_DKPRO_PACKAGE=0
 

@@ -80,6 +80,11 @@ export PATH=$PATH:<path to devkitPSP>/bin
 
 (Obviously replace <path to devkitPSP> with the full path to the devkitPSP installation directory)
 
+Using devkitSH4
+---------------
+
+to create add-ons for exword electronic dictionaries use he command line switch -mexword to use the builtin crt0 and linkscript
+
 Getting started
 ---------------
 

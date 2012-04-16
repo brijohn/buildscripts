@@ -3,6 +3,7 @@ cd $BUILDDIR
 
 for archive in $hostarchives
 do
+	archive=`basename $archive`
 	dir=$(echo $archive | sed -e 's/\(.*\)\.tar\.bz2/\1/' )
 	cd $BUILDDIR/$dir
 	if [ ! -f configured ]; then

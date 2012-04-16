@@ -4,6 +4,7 @@
 #	devkitARM release 38
 #	devkitPPC release 26
 #	devkitPSP release 17
+#	devkitSH4 release 1
 #---------------------------------------------------------------------------------
 
 if [ 1 -eq 1 ] ; then
@@ -33,6 +34,7 @@ LIBMIRKO_VER=0.9.7
 MAXMOD_VER=1.0.7
 FILESYSTEM_VER=0.9.9
 LIBFAT_VER=1.0.11
+LIBDATAPLUS_VER=dev
 PSPSDK_VER=20120404
 GBATOOLS_VER=1.0.0
 GRIT_VER=0.8.10
@@ -44,6 +46,7 @@ GCDSPSUITE_VER=1.4.0
 ELF2DOL_VER=1.0.0
 WIILOAD_VER=0.5.1
 MMUTIL_VER=1.8.6
+ELF2D01_VER=1.0.0
 
 #---------------------------------------------------------------------------------
 function extract_and_patch {
@@ -181,7 +184,8 @@ BUILDDIR=$(pwd)/.$package
 if [ ! -z $CROSSBUILD ]; then
 	BUILDDIR=$BUILDDIR-$CROSSBUILD
 fi
-DEVKITPRO_URL="http://downloads.sourceforge.net/devkitpro"
+DEVKITPRO_URL="http://downloads.sourceforge.net/devkitpro/"
+DATAPLUS_URL="https://github.com/downloads/brijohn/"
 
 patchdir=$(pwd)/$basedir/patches
 scriptdir=$(pwd)/$basedir/scripts
@@ -207,6 +211,11 @@ if [ $VERSION -eq 3 ]; then
 	targetarchives="pspsdk-src-${PSPSDK_VER}.tar.bz2"
 fi
 
+if [ $VERSION -eq 4 ]; then
+	targetarchives="${DATAPLUS_URL}libdataplus/libdataplus-src-${LIBDATAPLUS_VER}.tar.bz2"
+	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 ${DATAPLUS_URL}buildscripts/elf2d01-$ELF2D01_VER.tar.bz2"
+fi
+
 if [ ! -z "$BUILD_DKPRO_SRCDIR" ] ; then
 	SRCDIR="$BUILD_DKPRO_SRCDIR"
 else
@@ -216,9 +225,12 @@ fi
 cd $SRCDIR
 for archive in $archives $targetarchives $hostarchives
 do
-	echo $archive
-	if [ ! -f $archive ]; then
-		$FETCH http://downloads.sf.net/devkitpro/$archive || { echo "Error: Failed to download $archive"; exit 1; }
+	if [ "`dirname $archive`" = "." ]; then
+		archive="${DEVKITPRO_URL}${archive}"
+	fi
+	echo `basename $archive`
+	if [ ! -f `basename $archive` ]; then
+		$FETCH $archive || { echo "Error: Failed to download `basename $archive`"; exit 1; }
 	fi
 done
 
@@ -234,6 +246,7 @@ extract_and_patch gdb $GDB_VER bz2
 
 for archive in $targetarchives
 do
+	archive=`basename $archive`
 	destdir=$(echo $archive | sed -e 's/\(.*\)-src-\(.*\)\.tar\.bz2/\1-\2/' )
 	echo $destdir
 	if [ ! -d $destdir ]; then
@@ -244,6 +257,7 @@ done
 
 for archive in $hostarchives
 do
+	archive=`basename $archive`
 	tar -xjf $SRCDIR/$archive
 done
 

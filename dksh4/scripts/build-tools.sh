@@ -1,4 +1,5 @@
 #!/bin/bash
+
 cd $BUILDDIR
 
 for archive in $hostarchives
@@ -19,3 +20,4 @@ do
 		touch installed
 	fi
 done
+

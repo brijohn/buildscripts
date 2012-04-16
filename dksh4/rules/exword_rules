@@ -1,0 +1,55 @@
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to sdk>")
+endif
+
+export PORTLIBS	:=	$(DEVKITPRO)/portlibs/sh
+export PATH	:=	$(DEVKITSH4)/bin:$(PORTLIBS)/bin:$(PATH)
+
+#---------------------------------------------------------------------------------
+# the prefix on the compiler executables
+#---------------------------------------------------------------------------------
+PREFIX	:=	sh-elf-
+
+export CC		:=	$(PREFIX)gcc
+export AR		:=	$(PREFIX)ar
+export LD		:=	$(CC)
+export OBJCOPY		:=	$(PREFIX)objcopy
+export ELF2D01		:=	elf2d01
+
+
+MACHDEP  =  -mb -m3 -mexword -mrenesas
+
+MODNAME = cus000
+
+
+#---------------------------------------------------------------------------------
+%.d01: %.elf
+	@echo output ... $(notdir $@)
+	@$(ELF2D01) -m $(MODNAME) $< $@
+
+#---------------------------------------------------------------------------------
+%.elf:
+	@echo linking ... $(notdir $@)
+	@$(LD)  $^ $(MACHDEP) $(LDFLAGS) $(LIBPATHS) $(LIBS) -Wl,-Map,$@.map -o $@
+
+#---------------------------------------------------------------------------------
+%.a:
+	@echo $(notdir $@)
+	@rm -f $@
+	@$(AR) -rc $@ $^
+	
+#---------------------------------------------------------------------------------
+%.o: %.c
+	@echo $(notdir $<)
+	@$(CC) $(MACHDEP) $(CFLAGS) -c $< -o $@
+
+#---------------------------------------------------------------------------------
+%.o: %.s
+	@echo $(notdir $<)
+	@$(CC) -x assembler-with-cpp $(MACHDEP) $(ASFLAGS) -c $< -o $@
+
+#---------------------------------------------------------------------------------
+%.o: %.S
+	@echo $(notdir $<)
+	@$(CC) -x assembler-with-cpp $(MACHDEP) $(ASFLAGS) -c $< -o $@
+
