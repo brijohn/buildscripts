@@ -1,7 +1,7 @@
 #!/bin/bash
 #---------------------------------------------------------------------------------
 # Build scripts for
-#	devkitARM release 38
+#	devkitARM release 40
 #	devkitPPC release 26
 #	devkitPSP release 17
 #	devkitSH4 release 1
@@ -25,9 +25,9 @@ echo "Patches and improvements are of course welcome, please send these to the p
 echo "https://sourceforge.net/tracker/?group_id=114505&atid=668553"
 echo
 
-LIBOGC_VER=1.8.10
+LIBOGC_VER=1.8.11
 LIBGBA_VER=20090222
-LIBNDS_VER=1.5.5
+LIBNDS_VER=1.5.7
 DEFAULT_ARM7_VER=0.5.24
 DSWIFI_VER=0.3.13
 LIBMIRKO_VER=0.9.7
@@ -47,6 +47,8 @@ ELF2DOL_VER=1.0.0
 WIILOAD_VER=0.5.1
 MMUTIL_VER=1.8.6
 ELF2D01_VER=1.0.0
+DFU_UTIL_VER=0.6
+STLINK_VER=0.5.3
 
 #---------------------------------------------------------------------------------
 function extract_and_patch {
@@ -154,6 +156,10 @@ else
 	prefix=$INSTALLDIR/$package
 fi
 
+if [ "$CROSSBUILD" = "i686-w64-mingw32" ]; then
+	export PKG_CONFIG_PATH=/opt/i686-w64-mingw32/mingw/lib/pkgconfig
+fi
+
 if [ "$BUILD_DKPRO_AUTOMATED" != "1" ] ; then
 
 	echo
@@ -198,7 +204,8 @@ if [ $VERSION -eq 1 ]; then
 		default-arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
 		libfat-src-${LIBFAT_VER}.tar.bz2"
 	hostarchives="gbatools-$GBATOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
-		general-tools-$GENERAL_TOOLS_VER.tar.bz2 dlditool-$DLDITOOL_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2"
+		general-tools-$GENERAL_TOOLS_VER.tar.bz2 dlditool-$DLDITOOL_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
+		dfu-util-$DFU_UTIL_VER.tar.bz2 stlink-$STLINK_VER.tar.bz2"
 fi
 
 if [ $VERSION -eq 2 ]; then
@@ -271,6 +278,9 @@ if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo 
 if [ "$CROSSBUILD" = "i686-w64-mingw32" ]; then
 	if [ $VERSION -ne 3 ]; then
 		cp -v 	/opt/i686-w64-mingw32/mingw/lib/FreeImage.dll $prefix/bin
+	fi
+	if [ $VERSION -eq 1 ]; then
+		cp -v /opt/i686-w64-mingw32/i686-w64-mingw32/bin/libusb-1.0.dll $prefix/bin
 	fi
 	cp -v	/opt/i686-w64-mingw32/mingw/lib/libstdc++-6.dll \
 		/opt/i686-w64-mingw32/mingw/lib/libgcc_s_sjlj-1.dll \
