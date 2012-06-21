@@ -7,7 +7,7 @@
 #	devkitSH4 release 1
 #---------------------------------------------------------------------------------
 
-if [ 1 -eq 1 ] ; then
+if [ 0 -eq 1 ] ; then
 	echo "Currently in release cycle, proceed with caution, do not report problems, do not ask for support."
 	echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
 	echo "http://sourceforge.net/projects/devkitpro/files/buildscripts/"
@@ -34,7 +34,7 @@ LIBMIRKO_VER=0.9.7
 MAXMOD_VER=1.0.7
 FILESYSTEM_VER=0.9.9
 LIBFAT_VER=1.0.11
-LIBDATAPLUS_VER=dev
+LIBDATAPLUS_VER=master
 PSPSDK_VER=20120404
 GBATOOLS_VER=1.0.0
 GRIT_VER=0.8.10
@@ -51,6 +51,17 @@ DFU_UTIL_VER=0.6
 STLINK_VER=0.5.3
 
 #---------------------------------------------------------------------------------
+function git_clone_project {
+#---------------------------------------------------------------------------------
+	name=$(echo $1 | sed -e 's/.*\/\([^/]*\)\.git/\1/' )
+	if [ ! -f cloned-$name ]; then
+		echo "cloning $name"
+		git clone $1 -b $2 $name-$2 || { echo "Error cloning $name"; exit 1; }
+		touch cloned-$name
+	fi
+}
+
+#---------------------------------------------------------------------------------
 function extract_and_patch {
 #---------------------------------------------------------------------------------
 	if [ ! -f extracted-$1 ]; then
@@ -65,7 +76,7 @@ function extract_and_patch {
 			echo "invalid archive type"
 			exit 1
 		fi
-		tar $extractflags $SRCDIR/$1-$2$archivetype || { echo "Error extracting "$1; exit 1; }
+		tar $extractflags $SRCDIR/$1-$2$archivetype || { echo "Error extracting $1"; exit 1; }
 		touch extracted-$1
 	fi
 	if [[ ! -f patched-$1 && -f $patchdir/$1-$2.patch ]]; then
@@ -219,7 +230,7 @@ if [ $VERSION -eq 3 ]; then
 fi
 
 if [ $VERSION -eq 4 ]; then
-	targetarchives="${DATAPLUS_URL}libdataplus/libdataplus-src-${LIBDATAPLUS_VER}.tar.bz2"
+	gitrepos="git://github.com/brijohn/libdataplus.git"
 	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 ${DATAPLUS_URL}buildscripts/elf2d01-$ELF2D01_VER.tar.bz2"
 fi
 
@@ -244,6 +255,11 @@ done
 cd $BUILDSCRIPTDIR
 mkdir -p $BUILDDIR
 cd $BUILDDIR
+
+for repo in $gitrepos
+do
+	git_clone_project $repo master
+done
 
 extract_and_patch binutils $BINUTILS_VER bz2
 extract_and_patch gcc $GCC_VER bz2
