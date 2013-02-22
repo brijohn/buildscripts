@@ -17,7 +17,7 @@ _start:
 	mov.l	__libc_init_addr, r1
 	tst	r1, r1
 	bt	.L5
-	mov	r4, r14
+	mov	r14, r4
 	jsr	@r1
 	nop
 .L5:
