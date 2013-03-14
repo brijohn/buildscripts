@@ -2,11 +2,18 @@
 .extern _main, ___libc_init, ___libc_cleanup
 
 _start:
-	mov.l	_exit_pr, r1
-	mov.l	_exit_sp, r2
-	sts	pr, r0
-	mov.l	r0, @r1
-	mov.l	r15, @r2
+	mov.l	_exit_ptr, r1
+	stc.l	gbr, @-r1
+	sts.l	pr, @-r1
+	mov.l	r15, @-r1
+	mov.l	r14, @-r1
+	mov.l	r13, @-r1
+	mov.l	r12, @-r1
+	mov.l	r11, @-r1
+	mov.l	r10, @-r1
+	mov.l	r9, @-r1
+	mov.l	r8, @-r1
+
 	mov.l	r14, @-r15
 	mov.l	r13, @-r15
 	sts.l	pr, @-r15
@@ -40,10 +47,8 @@ _start:
 	mov.l	@r15+, r14
 
 .align 2
-_exit_pr:
-.long 0x74000024
-_exit_sp:
-.long 0x74000028
+_exit_ptr:
+.long 0x7400004c
 __copy_data_addr:
 .long __copy_data
 _main_addr:
