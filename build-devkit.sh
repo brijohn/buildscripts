@@ -1,8 +1,8 @@
 #!/bin/bash
 #---------------------------------------------------------------------------------
 # Build scripts for
-#	devkitARM release 40
-#	devkitPPC release 26
+#	devkitARM release 42
+#	devkitPPC release 27
 #	devkitPSP release 17
 #	devkitSH4 release 1
 #---------------------------------------------------------------------------------
@@ -12,8 +12,8 @@ if [ 0 -eq 1 ] ; then
 	echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
 	echo "http://sourceforge.net/projects/devkitpro/files/buildscripts/"
 	echo
-	echo "The scripts in svn are quite often dependent on things which currently only exist on developer"
-	echo "machines. This is not a bug, use stable releases."
+	echo "The scripts in the git repository are quite often dependent on things which currently only exist"
+	echo "on developer machines. This is not a bug, use stable releases."
 	exit 1
 fi
 
@@ -29,11 +29,11 @@ LIBOGC_VER=1.8.11
 LIBGBA_VER=20090222
 LIBNDS_VER=1.5.7
 DEFAULT_ARM7_VER=0.5.24
-DSWIFI_VER=0.3.13
+DSWIFI_VER=0.3.16
 LIBMIRKO_VER=0.9.7
-MAXMOD_VER=1.0.7
+MAXMOD_VER=1.0.8
 FILESYSTEM_VER=0.9.9
-LIBFAT_VER=1.0.11
+LIBFAT_VER=1.0.12
 LIBDATAPLUS_VER=master
 PSPSDK_VER=20120404
 GBATOOLS_VER=1.0.0
@@ -47,8 +47,8 @@ ELF2DOL_VER=1.0.0
 WIILOAD_VER=0.5.1
 MMUTIL_VER=1.8.6
 ELF2D01_VER=1.0.0
-DFU_UTIL_VER=0.6
-STLINK_VER=0.5.3
+DFU_UTIL_VER=0.7
+STLINK_VER=0.5.5
 
 #---------------------------------------------------------------------------------
 function git_clone_project {
@@ -125,7 +125,7 @@ else
 	echo "for mingw/msys you must use <drive>:/<install path> or you will have include path problems"
 	echo "this is the top level directory for devkitpro, i.e. e:/devkitPro"
 
-	read INSTALLDIR
+	read -e INSTALLDIR
 	echo
 fi
 
@@ -163,18 +163,15 @@ export PATH=$PATH:$TOOLPATH/$package/bin
 if [ ! -z $CROSSBUILD ]; then
 	prefix=$INSTALLDIR/$CROSSBUILD/$package
 	CROSS_PARAMS="--build=`./config.guess` --host=$CROSSBUILD"
+	export PKG_CONFIG_PATH=$CROSSLIBPATH/pkgconfig
 else
 	prefix=$INSTALLDIR/$package
-fi
-
-if [ "$CROSSBUILD" = "i686-w64-mingw32" ]; then
-	export PKG_CONFIG_PATH=/opt/i686-w64-mingw32/mingw/lib/pkgconfig
 fi
 
 if [ "$BUILD_DKPRO_AUTOMATED" != "1" ] ; then
 
 	echo
-	echo 'Ready to install '$package' in '$INSTALLDIR
+	echo 'Ready to install '$package' in '$prefix
 	echo
 	echo 'press return to continue'
 
@@ -212,7 +209,7 @@ archives="binutils-${BINUTILS_VER}.tar.bz2 gcc-${GCC_VER}.tar.bz2 newlib-${NEWLI
 if [ $VERSION -eq 1 ]; then
 	targetarchives="libnds-src-${LIBNDS_VER}.tar.bz2 libgba-src-${LIBGBA_VER}.tar.bz2
 		libmirko-src-${LIBMIRKO_VER}.tar.bz2 dswifi-src-${DSWIFI_VER}.tar.bz2 maxmod-src-${MAXMOD_VER}.tar.bz2
-		default-arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
+		default_arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
 		libfat-src-${LIBFAT_VER}.tar.bz2"
 	hostarchives="gbatools-$GBATOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
 		general-tools-$GENERAL_TOOLS_VER.tar.bz2 dlditool-$DLDITOOL_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
@@ -291,15 +288,15 @@ if [ -f $scriptdir/build-gcc.sh ]; then . $scriptdir/build-gcc.sh || { echo "Err
 if [ -f $scriptdir/build-tools.sh ]; then . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR; fi
 if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo "Error building crtls"; exit 1; }; cd $BUILDSCRIPTDIR; fi
 
-if [ "$CROSSBUILD" = "i686-w64-mingw32" ]; then
+if [ ! -z $CROSSBUILD ]; then
 	if [ $VERSION -ne 3 ]; then
-		cp -v 	/opt/i686-w64-mingw32/mingw/lib/FreeImage.dll $prefix/bin
+		cp -v 	$CROSSLIBPATH/FreeImage.dll $prefix/bin
 	fi
 	if [ $VERSION -eq 1 ]; then
-		cp -v /opt/i686-w64-mingw32/i686-w64-mingw32/bin/libusb-1.0.dll $prefix/bin
+		cp -v $CROSSBINPATH/libusb-1.0.dll $prefix/bin
 	fi
-	cp -v	/opt/i686-w64-mingw32/mingw/lib/libstdc++-6.dll \
-		/opt/i686-w64-mingw32/mingw/lib/libgcc_s_sjlj-1.dll \
+	cp -v	$CROSSLIBPATH/libstdc++-6.dll \
+		$CROSSLIBPATH/libgcc_s_sjlj-1.dll \
 		$prefix/bin
 fi
 
