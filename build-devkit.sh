@@ -227,7 +227,7 @@ if [ $VERSION -eq 3 ]; then
 fi
 
 if [ $VERSION -eq 4 ]; then
-	gitrepos="git://github.com/brijohn/libdataplus.git"
+	gitrepos="git://github.com/brijohn/libdataplus.git:$LIBDATAPLUS_VER"
 	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 ${DATAPLUS_URL}buildscripts/elf2d01-$ELF2D01_VER.tar.bz2"
 fi
 
@@ -255,7 +255,9 @@ cd $BUILDDIR
 
 for repo in $gitrepos
 do
-	git_clone_project $repo master
+	url=$(echo $repo | sed -e 's/\(.*\/[^/]*\.git\).*/\1/' )
+	branch=$(echo $repo | sed -e 's/.*\/[^/]*\.git:\(.*\)/\1/' )
+	git_clone_project $url $branch
 done
 
 extract_and_patch binutils $BINUTILS_VER bz2
