@@ -21,6 +21,7 @@ SECTIONS
   {
     _sbss = .;
     *(.bss)
+    *(.bss*)
     *(COMMON)
     _ebss = .;
   } > ram
@@ -28,6 +29,7 @@ SECTIONS
   {
     _sdata = .;
     *(.data)
+    *(.data*)
     _edata = .;
   } > ram AT>rom
   /DISCARD/ :
