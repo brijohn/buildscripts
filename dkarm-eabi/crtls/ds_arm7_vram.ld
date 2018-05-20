@@ -6,7 +6,7 @@ MEMORY {
 
 	rom	: ORIGIN = 0x08000000, LENGTH = 32M
 	iwram	: ORIGIN = 0x037f8000, LENGTH = 96K	
-	vram	: ORIGIN = 0x06000000, LENGTH = 128K
+	vram	: ORIGIN = 0x06000000, LENGTH = 256K
 }
 
 __iwram_start	=	ORIGIN(iwram);
@@ -22,17 +22,25 @@ __irq_vector	=	0x04000000 - 4;
 
 SECTIONS
 {
-	.init	:
+	.crt0	:
 	{
 		__text_start = . ;
-		KEEP (*(.init))
+		KEEP (*(.crt0))
 		. = ALIGN(4);  /* REQUIRED. LD is flaky without it. */
-		} >vram = 0xff
+	} >vram = 0xff
+
+	__arm7_lma__ = .;
+	__arm7_start__ = .;
+	.init           :
+	{
+		KEEP (*(SORT_NONE(.init)))
+	} >vram = 0xff
+
 	.plt : { *(.plt) } >vram = 0xff
 
 	.text :   /* ALIGN (4): */
 	{
-		*(.text .stub .text.* .gnu.linkonce.t.*)
+		*(.text .stub .text.* .twl .gnu.linkonce.t.*)
 		KEEP (*(.text.*personality*))
 		/* .gnu.warning sections are handled specially by elf32.em.  */
 		*(.gnu.warning)
@@ -128,14 +136,17 @@ SECTIONS
 	} >vram = 0xff
 
 
+	__arm7_end__ = .;
 
-	.bss ALIGN(4) :
+
+	.bss ALIGN(4) (NOLOAD) :
 	{
 		__bss_start = ABSOLUTE(.);
 		__bss_start__ = ABSOLUTE(.);
 		*(.dynbss)
 		*(.gnu.linkonce.b*)
 		*(.bss*)
+		*(.twl_bss)
 		*(COMMON)
 		. = ALIGN(4);    /* REQUIRED. LD is flaky without it. */
 		__bss_end__ = ABSOLUTE(.);

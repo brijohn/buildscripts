@@ -16,7 +16,7 @@ then
 	--prefix=$prefix --target=$target --disable-nls --disable-shared --disable-debug \
 	--disable-werror \
 	--enable-poison-system-directories \
-	--enable-plugins --enable-lto --disable-dependency-tracking \
+	--enable-plugins --enable-lto \
 	--disable-werror $CROSS_PARAMS \
 	|| { echo "Error configuing ppc binutils"; exit 1; }
 	touch configured-binutils
@@ -45,9 +45,9 @@ cd mn10200/binutils
 
 if [ ! -f configured-binutils ]
 then
-	CFLAGS=$cflags LDFLAGS=$ldflags ../../binutils-$BINUTILS_VER/configure \
+	CFLAGS=$cflags LDFLAGS=$ldflags ../../binutils-$MN_BINUTILS_VER/configure \
 	--prefix=$prefix --target=mn10200 --disable-nls --disable-debug \
-	--disable-dependency-tracking \
+	--disable-multilib \
 	--disable-werror $CROSS_PARAMS \
 	|| { echo "Error configuing mn10200 binutils"; exit 1; }
 	touch configured-binutils
@@ -75,20 +75,30 @@ cd $target/gcc
 
 if [ ! -f configured-gcc ]
 then
-	CFLAGS="$cflags" LDFLAGS="$ldflags" CFLAGS_FOR_TARGET="-O2" LDFLAGS_FOR_TARGET="" ../../gcc-$GCC_VER/configure \
+	CFLAGS="$cflags" \
+	CXXFLAGS="$cflags" \
+	LDFLAGS="$ldflags" \
+	CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
+	CXXFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
+	LDFLAGS_FOR_TARGET="" \
+	../../gcc-$GCC_VER/configure \
 	--enable-languages=c,c++,objc \
 	--enable-lto $plugin_ld \
 	--with-cpu=750 \
 	--disable-nls --disable-shared --enable-threads --disable-multilib \
 	--disable-win32-registry \
 	--disable-libstdcxx-pch \
+	--disable-libstdcxx-verbose \
+	--enable-cxx-flags='-ffunction-sections -fdata-sections' \
 	--target=$target \
 	--with-newlib \
 	--with-headers=../../newlib-$NEWLIB_VER/newlib/libc/include \
 	--prefix=$prefix\
-	--disable-dependency-tracking \
-	--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitPPC release 27" \
+	--with-system-zlib\
+	--with-bugurl="https://github.com/devkitpro/buildscripts/issues" --with-pkgversion="devkitPPC release 30" \
 	$CROSS_PARAMS \
+	$CROSS_GCC_PARAMS \
+        CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
 	|| { echo "Error configuring gcc stage 1"; exit 1; }
 	touch configured-gcc
 fi
@@ -115,8 +125,14 @@ cd $target/newlib
 unset CFLAGS
 unset LDFLAGS
 
+OLD_CC=$CC
+OLD_CXX=$CXX
+unset CC
+unset CXX
+
 if [ ! -f configured-newlib ]
 then
+	CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
 	../../newlib-$NEWLIB_VER/configure \
 	--target=$target \
 	--prefix=$prefix \
@@ -133,9 +149,12 @@ then
 fi
 if [ ! -f installed-newlib ]
 then
-	$MAKE install || { echo "Error installing newlib"; exit 1; }
+	$MAKE install -j1 || { echo "Error installing newlib"; exit 1; }
 	touch installed-newlib
 fi
+
+export CC=$OLD_CC
+export CXX=$OLD_CXX
 
 #---------------------------------------------------------------------------------
 # build and install the final compiler
@@ -159,6 +178,17 @@ fi
 
 rm -fr $prefix/$target/sys-include
 
+#---------------------------------------------------------------------------------
+# Install and build the gamecube crt and libogc
+#---------------------------------------------------------------------------------
+
+echo "installing linkscripts ..."
+cp $BUILDSCRIPTDIR/dkppc/crtls/*.ld $prefix/$target/lib/
+#---------------------------------------------------------------------------------
+# copy base rulesets
+#---------------------------------------------------------------------------------
+cp $BUILDSCRIPTDIR/dkppc/rules/* $prefix
+
 cd $BUILDDIR
 
 #---------------------------------------------------------------------------------
@@ -170,7 +200,7 @@ cd $target/gdb
 if [ ! -f configured-gdb ]
 then
 	CFLAGS="$cflags" LDFLAGS="$ldflags" ../../gdb-$GDB_VER/configure \
-	--disable-nls --prefix=$prefix --target=$target --disable-werror --disable-dependency-tracking\
+	--disable-nls --prefix=$prefix --target=$target --disable-werror \
 	$CROSS_PARAMS || { echo "Error configuring gdb"; exit 1; }
 	touch configured-gdb
 fi

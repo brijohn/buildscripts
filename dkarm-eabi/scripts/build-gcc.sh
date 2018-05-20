@@ -11,7 +11,7 @@ cd $target/binutils
 if [ ! -f configured-binutils ]
 then
 	CFLAGS=$cflags LDFLAGS=$ldflags ../../binutils-$BINUTILS_VER/configure \
-        --prefix=$prefix --target=$target --disable-nls --disable-dependency-tracking --disable-werror \
+        --prefix=$prefix --target=$target --disable-nls --disable-werror \
 	--enable-lto --enable-plugins --enable-poison-system-directories \
 	$CROSS_PARAMS \
         || { echo "Error configuring binutils"; exit 1; }
@@ -39,14 +39,21 @@ cd $target/gcc
 
 if [ ! -f configured-gcc ]
 then
-	CFLAGS="$cflags" LDFLAGS="$ldflags" CFLAGS_FOR_TARGET="-O2" LDFLAGS_FOR_TARGET="" ../../gcc-$GCC_VER/configure \
-		--enable-languages=c,c++,objc,obj-c++ \
+	CFLAGS="$cflags" \
+	CXXFLAGS="$cflags" \
+	LDFLAGS="$ldflags" \
+	CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
+	CXXFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
+	LDFLAGS_FOR_TARGET="" \
+	../../gcc-$GCC_VER/configure \
+		--enable-languages=c,c++ \
 		--with-gnu-as --with-gnu-ld --with-gcc \
 		--with-march=armv4t\
+		--enable-cxx-flags='-ffunction-sections' \
+		--disable-libstdcxx-verbose \
 		--enable-poison-system-directories \
 		--enable-interwork --enable-multilib \
-		--disable-dependency-tracking \
-		--disable-threads --disable-win32-registry --disable-nls --disable-debug\
+		--enable-threads --disable-win32-registry --disable-nls --disable-debug\
 		--disable-libmudflap --disable-libssp --disable-libgomp \
 		--disable-libstdcxx-pch \
 		--target=$target \
@@ -54,8 +61,10 @@ then
 		--with-headers=../../newlib-$NEWLIB_VER/newlib/libc/include \
 		--prefix=$prefix \
 		--enable-lto $plugin_ld\
-		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 42" \
+		--with-system-zlib \
+		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 48" \
 		$CROSS_PARAMS \
+		$CROSS_GCC_PARAMS \
 		|| { echo "Error configuring gcc"; exit 1; }
 	touch configured-gcc
 fi
@@ -76,6 +85,11 @@ fi
 unset CFLAGS
 cd $BUILDDIR
 
+OLD_CC=$CC
+OLDCXX=$CXX
+unset CC
+unset CXX
+
 #---------------------------------------------------------------------------------
 # build and install newlib
 #---------------------------------------------------------------------------------
@@ -84,10 +98,11 @@ cd $target/newlib
 
 if [ ! -f configured-newlib ]
 then
-	CFLAGS_FOR_TARGET="-DREENTRANT_SYSCALLS_PROVIDED -D__DEFAULT_UTF8__ -O2" ../../newlib-$NEWLIB_VER/configure \
+	CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
+	../../newlib-$NEWLIB_VER/configure \
 	--disable-newlib-supplied-syscalls \
 	--enable-newlib-mb \
-	--enable-newlib-io-long-long \
+	--disable-newlib-wide-orient \
 	--target=$target \
 	--prefix=$prefix \
 	|| { echo "Error configuring newlib"; exit 1; }
@@ -103,9 +118,12 @@ fi
 
 if [ ! -f installed-newlib ]
 then
-	$MAKE install || { echo "Error installing newlib"; exit 1; }
+	$MAKE install -j1 || { echo "Error installing newlib"; exit 1; }
 	touch installed-newlib
 fi
+
+export CC=$OLD_CC
+export CXX=$OLD_CXX
 
 #---------------------------------------------------------------------------------
 # build and install the final compiler
@@ -131,6 +149,39 @@ rm -fr $prefix/$target/sys-include
 
 cd $BUILDDIR
 
+
+#---------------------------------------------------------------------------------
+# copy base rulesets
+#---------------------------------------------------------------------------------
+cp -v $BUILDSCRIPTDIR/dkarm-eabi/rules/* $prefix
+
+
+#---------------------------------------------------------------------------------
+# set env variables
+#---------------------------------------------------------------------------------
+export DEVKITPRO=$TOOLPATH
+export DEVKITARM=$DEVKITPRO/devkitARM
+
+#---------------------------------------------------------------------------------
+# Install and build the crt0 files
+#---------------------------------------------------------------------------------
+
+cp -v $BUILDSCRIPTDIR/dkarm-eabi/crtls/* $prefix/$target/lib/
+cd $prefix/$target/lib/
+
+
+$MAKE CRT=gba
+$MAKE CRT=gp32
+$MAKE CRT=er
+$MAKE CRT=gp32_gpsdk
+$MAKE CRT=ds_arm7
+$MAKE CRT=ds_arm9
+$MAKE CRT=ds_cart
+$MAKE ds_arm7_vram_crt0
+$MAKE 3dsx_crt0
+
+cd $BUILDDIR
+
 #---------------------------------------------------------------------------------
 # build and install the debugger
 #---------------------------------------------------------------------------------
@@ -141,9 +192,11 @@ PLATFORM=`uname -s`
 
 if [ ! -f configured-gdb ]
 then
-	CFLAGS="$cflags" LDFLAGS="$ldflags" ../../gdb-$GDB_VER/configure \
+	CFLAGS="$cflags" \
+	CXXFLAGS="$cflags" \
+	LDFLAGS="$ldflags" \
+	../../gdb-$GDB_VER/configure \
 	--disable-nls --prefix=$prefix --target=$target --disable-werror \
-	--disable-dependency-tracking \
 	$CROSS_PARAMS \
 	|| { echo "Error configuring gdb"; exit 1; }
 	touch configured-gdb

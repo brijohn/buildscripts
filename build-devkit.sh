@@ -1,18 +1,17 @@
 #!/bin/bash
 #---------------------------------------------------------------------------------
 # Build scripts for
-#	devkitARM release 42
-#	devkitPPC release 27
-#	devkitPSP release 17
-#	devkitSH4 release 1
+#	devkitARM release 48
+#	devkitPPC release 30
+#	devkitA64 release 9
+#	devkitSH4 release 2
 #---------------------------------------------------------------------------------
 
-if [ 0 -eq 1 ] ; then
-	echo "Currently in release cycle, proceed with caution, do not report problems, do not ask for support."
+if [ "scripts" != "enabled" ] ; then
 	echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
-	echo "http://sourceforge.net/projects/devkitpro/files/buildscripts/"
+	echo "https://github.com/devkitPro/buildscripts/releases"
 	echo
-	echo "The scripts in the git repository are quite often dependent on things which currently only exist"
+	echo "The scripts in the git repository may be dependent on things which currently only exist"
 	echo "on developer machines. This is not a bug, use stable releases."
 	exit 1
 fi
@@ -21,34 +20,51 @@ echo "Please note, these scripts are provided as a courtesy, toolchains built wi
 echo "are for personal use only and may not be distributed by entities other than devkitPro."
 echo "See http://devkitpro.org/wiki/Trademarks"
 echo
-echo "Patches and improvements are of course welcome, please send these to the patch tracker"
-echo "https://sourceforge.net/tracker/?group_id=114505&atid=668553"
+echo "Patches and improvements are of course welcome, please submit a PR"
+echo "https://github.com/devkitPro/buildscripts/pulls"
 echo
 
-LIBOGC_VER=1.8.11
-LIBGBA_VER=20090222
-LIBNDS_VER=1.5.7
-DEFAULT_ARM7_VER=0.5.24
-DSWIFI_VER=0.3.16
-LIBMIRKO_VER=0.9.7
-MAXMOD_VER=1.0.8
-FILESYSTEM_VER=0.9.9
-LIBFAT_VER=1.0.12
-LIBDATAPLUS_VER=master
-PSPSDK_VER=20120404
-GBATOOLS_VER=1.0.0
-GRIT_VER=0.8.10
-NDSTOOL_VER=1.50.1
-GENERAL_TOOLS_VER=1.0.0
-DLDITOOL_VER=1.24.0
-GXTEXCONV_VER=0.1.9
-GCDSPSUITE_VER=1.4.0
-ELF2DOL_VER=1.0.0
+GENERAL_TOOLS_VER=1.0.2
+
+LIBGBA_VER=0.5.0
+GBATOOLS_VER=1.1.0
+
+LIBNDS_VER=1.7.1
+DEFAULT_ARM7_VER=0.7.3
+DSWIFI_VER=0.4.2
+MAXMOD_VER=1.0.11
+FILESYSTEM_VER=0.9.13-1
+LIBFAT_VER=1.1.2
+DSTOOLS_VER=1.2.1
+GRIT_VER=0.8.15
+NDSTOOL_VER=2.1.1
+MMUTIL_VER=1.8.7
+
+DFU_UTIL_VER=0.9.1
+STLINK_VER=1.2.3
+
+GAMECUBE_TOOLS_VER=1.0.2
+LIBOGC_VER=1.8.17
 WIILOAD_VER=0.5.1
-MMUTIL_VER=1.8.6
+
+LIBCTRU_VER=1.5.0
+CITRO3D_VER=1.4.0
+CITRO2D_VER=1.0.0
+TOOLS3DS_VER=1.1.4
+LINK3DS_VER=0.5.2
+PICASSO_VER=2.7.0
+TEX3DS_VER=1.0.0
+
+GP32_TOOLS_VER=1.0.3
+LIBMIRKO_VER=0.9.7
+
+SWITCH_TOOLS_VER=1.2.0
+LIBNX_VER=1.0.0
+
 ELF2D01_VER=1.0.0
-DFU_UTIL_VER=0.7
-STLINK_VER=0.5.5
+LIBDATAPLUS_VER=master
+
+OSXMIN=${OSXMIN:-10.9}
 
 #---------------------------------------------------------------------------------
 function git_clone_project {
@@ -64,25 +80,15 @@ function git_clone_project {
 #---------------------------------------------------------------------------------
 function extract_and_patch {
 #---------------------------------------------------------------------------------
-	if [ ! -f extracted-$1 ]; then
-		echo "extracting $1"
-		if [ $3 == "bz2" ]; then
-			extractflags="-xjf"
-			archivetype=".tar.bz2"
-		elif [ $3 == "gz" ]; then
-			extractflags="-xzf"
-			archivetype=".tar.gz"
-		else
-			echo "invalid archive type"
-			exit 1
-		fi
-		tar $extractflags $SRCDIR/$1-$2$archivetype || { echo "Error extracting $1"; exit 1; }
-		touch extracted-$1
+	if [ ! -f extracted-$1-$2 ]; then
+		echo "extracting $1-$2"
+		tar -xf "$SRCDIR/$1-$2.tar.$3" || { echo "Error extracting "$1; exit 1; }
+		touch extracted-$1-$2
 	fi
-	if [[ ! -f patched-$1 && -f $patchdir/$1-$2.patch ]]; then
-		echo "patching $1"
+	if [[ ! -f patched-$1-$2 && -f $patchdir/$1-$2.patch ]]; then
+		echo "patching $1-$2"
 		patch -p1 -d $1-$2 -i $patchdir/$1-$2.patch || { echo "Error patching $1"; exit 1; }
-		touch patched-$1
+		touch patched-$1-$2
 	fi
 }
 
@@ -103,7 +109,7 @@ unset LDFLAGS
 #---------------------------------------------------------------------------------
 # Look for automated configuration file to bypass prompts
 #---------------------------------------------------------------------------------
- 
+
 echo -n "Looking for configuration file... "
 if [ -f ./config.sh ]; then
   echo "Found."
@@ -163,7 +169,7 @@ export PATH=$PATH:$TOOLPATH/$package/bin
 if [ ! -z $CROSSBUILD ]; then
 	prefix=$INSTALLDIR/$CROSSBUILD/$package
 	CROSS_PARAMS="--build=`./config.guess` --host=$CROSSBUILD"
-	export PKG_CONFIG_PATH=$CROSSLIBPATH/pkgconfig
+	CROSS_GCC_PARAMS="--with-gmp=$CROSSPATH --with-mpfr=$CROSSPATH --with-mpc=$CROSSPATH"
 else
 	prefix=$INSTALLDIR/$package
 fi
@@ -181,10 +187,16 @@ PLATFORM=`uname -s`
 
 case $PLATFORM in
 	Darwin )
-		cflags="-mmacosx-version-min=10.4 -isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch i386 -arch ppc"
-		ldflags="-mmacosx-version-min=10.4 -arch i386 -arch ppc -Wl,-syslibroot,/Developer/SDKs/MacOSX10.4u.sdk"
-		export CC=gcc-4.0
-		export CXX=g++-4.0
+		cflags="-mmacosx-version-min=${OSXMIN} -I/usr/local/include"
+		ldflags="-mmacosx-version-min=${OSXMIN} -L/usr/local/lib"
+		if [ "x${OSXSDKPATH}x" != "xx" ]; then
+			cflags="$cflags -isysroot ${OSXSDKPATH}"
+			ldflags="$ldflags -Wl,-syslibroot,${OSXSDKPATH}"
+		fi
+		TESTCC=`cc -v 2>&1 | grep clang`
+		if [ "x${TESTCC}x" != "xx" ]; then
+			cflags="$cflags -fbracket-depth=512"
+		fi
     ;;
 	MINGW32* )
 		cflags="-D__USE_MINGW_ACCESS"
@@ -193,37 +205,49 @@ case $PLATFORM in
     ;;
 esac
 
+
 BUILDSCRIPTDIR=$(pwd)
 BUILDDIR=$(pwd)/.$package
+
 if [ ! -z $CROSSBUILD ]; then
 	BUILDDIR=$BUILDDIR-$CROSSBUILD
 fi
-DEVKITPRO_URL="http://downloads.sourceforge.net/devkitpro/"
+DEVKITPRO_URL="https://github.com/devkitPro/buildscripts/releases/download/sources/"
 DATAPLUS_URL="https://github.com/downloads/brijohn/"
 
 patchdir=$(pwd)/$basedir/patches
 scriptdir=$(pwd)/$basedir/scripts
 
-archives="binutils-${BINUTILS_VER}.tar.bz2 gcc-${GCC_VER}.tar.bz2 newlib-${NEWLIB_VER}.tar.gz gdb-${GDB_VER}.tar.bz2"
+archives="binutils-${BINUTILS_VER}.tar.bz2 gcc-${GCC_VER}.tar.xz newlib-${NEWLIB_VER}.tar.gz gdb-${GDB_VER}.tar.xz"
 
 if [ $VERSION -eq 1 ]; then
+
 	targetarchives="libnds-src-${LIBNDS_VER}.tar.bz2 libgba-src-${LIBGBA_VER}.tar.bz2
 		libmirko-src-${LIBMIRKO_VER}.tar.bz2 dswifi-src-${DSWIFI_VER}.tar.bz2 maxmod-src-${MAXMOD_VER}.tar.bz2
 		default_arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
-		libfat-src-${LIBFAT_VER}.tar.bz2"
-	hostarchives="gbatools-$GBATOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
-		general-tools-$GENERAL_TOOLS_VER.tar.bz2 dlditool-$DLDITOOL_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
-		dfu-util-$DFU_UTIL_VER.tar.bz2 stlink-$STLINK_VER.tar.bz2"
+		libfat-src-${LIBFAT_VER}.tar.bz2 libctru-src-${LIBCTRU_VER}.tar.bz2  citro3d-src-${CITRO3D_VER}.tar.bz2
+		citro2d-src-${CITRO2D_VER}.tar.bz2"
+
+	hostarchives="gbatools-$GBATOOLS_VER.tar.bz2 gp32tools-$GP32_TOOLS_VER.tar.bz2
+		dstools-$DSTOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
+		general-tools-$GENERAL_TOOLS_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
+		dfu-util-$DFU_UTIL_VER.tar.bz2 stlink-$STLINK_VER.tar.bz2 3dstools-$TOOLS3DS_VER.tar.bz2
+		picasso-$PICASSO_VER.tar.bz2 tex3ds-$TEX3DS_VER.tar.bz2 3dslink-$LINK3DS_VER.tar.bz2"
 fi
 
 if [ $VERSION -eq 2 ]; then
+
 	targetarchives="libogc-src-${LIBOGC_VER}.tar.bz2 libfat-src-${LIBFAT_VER}.tar.bz2"
-	hostarchives="gxtexconv-$GXTEXCONV_VER.tar.bz2 gcdspsuite-$GCDSPSUITE_VER.tar.bz2
-			wiiload-$WIILOAD_VER.tar.bz2 elf2dol-$ELF2DOL_VER.tar.bz2 general-tools-$GENERAL_TOOLS_VER.tar.bz2"
+
+	hostarchives="gamecube-tools-$GAMECUBE_TOOLS_VER.tar.bz2 wiiload-$WIILOAD_VER.tar.bz2 general-tools-$GENERAL_TOOLS_VER.tar.bz2"
+
+	archives="binutils-${MN_BINUTILS_VER}.tar.bz2 $archives"
 fi
 
 if [ $VERSION -eq 3 ]; then
-	targetarchives="pspsdk-src-${PSPSDK_VER}.tar.bz2"
+
+	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 switch-tools-$SWITCH_TOOLS_VER.tar.bz2"
+
 fi
 
 if [ $VERSION -eq 4 ]; then
@@ -237,7 +261,7 @@ else
 	SRCDIR=`pwd`
 fi
 
-cd $SRCDIR
+cd "$SRCDIR"
 for archive in $archives $targetarchives $hostarchives
 do
 	if [ "`dirname $archive`" = "." ]; then
@@ -261,10 +285,13 @@ do
 done
 
 extract_and_patch binutils $BINUTILS_VER bz2
-extract_and_patch gcc $GCC_VER bz2
-rm -fr gcc-$GCC_VER/zlib
+extract_and_patch gcc $GCC_VER xz
 extract_and_patch newlib $NEWLIB_VER gz
-extract_and_patch gdb $GDB_VER bz2
+extract_and_patch gdb $GDB_VER xz
+
+if [ $VERSION -eq 2 ]; then
+	extract_and_patch binutils $MN_BINUTILS_VER bz2
+fi
 
 for archive in $targetarchives
 do
@@ -273,33 +300,33 @@ do
 	echo $destdir
 	if [ ! -d $destdir ]; then
 		mkdir -p $destdir
-		bzip2 -cd $SRCDIR/$archive | tar -xf - -C $destdir || { echo "Error extracting "$archive; exit 1; }
+		bzip2 -cd "$SRCDIR/$archive" | tar -xf - -C $destdir || { echo "Error extracting "$archive; exit 1; }
 	fi
 done
 
 for archive in $hostarchives
 do
-	archive=`basename $archive`
-	tar -xjf $SRCDIR/$archive
+	destdir=$(echo $archive | sed -e 's/\(.*\)-src-\(.*\)\.tar\.bz2/\1-\2/' )
+	if [ ! -d $destdir ]; then
+		tar -xjf "$SRCDIR/$archive"
+	fi
 done
 
 #---------------------------------------------------------------------------------
 # Build and install devkit components
 #---------------------------------------------------------------------------------
 if [ -f $scriptdir/build-gcc.sh ]; then . $scriptdir/build-gcc.sh || { echo "Error building toolchain"; exit 1; }; cd $BUILDSCRIPTDIR; fi
-if [ -f $scriptdir/build-tools.sh ]; then . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR; fi
-if [ -f $scriptdir/build-crtls.sh ]; then . $scriptdir/build-crtls.sh || { echo "Error building crtls"; exit 1; }; cd $BUILDSCRIPTDIR; fi
 
-if [ ! -z $CROSSBUILD ]; then
-	if [ $VERSION -ne 3 ]; then
-		cp -v 	$CROSSLIBPATH/FreeImage.dll $prefix/bin
-	fi
-	if [ $VERSION -eq 1 ]; then
-		cp -v $CROSSBINPATH/libusb-1.0.dll $prefix/bin
-	fi
-	cp -v	$CROSSLIBPATH/libstdc++-6.dll \
-		$CROSSLIBPATH/libgcc_s_sjlj-1.dll \
-		$prefix/bin
+if [ "$BUILD_DKPRO_SKIP_TOOLS" != "1" ] && [ -f $scriptdir/build-tools.sh ]; then
+ . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR;
+fi
+
+if [ "$BUILD_DKPRO_SKIP_LIBRARIES" != "1" ] && [ -f $scriptdir/build-libs.sh ]; then
+  . $scriptdir/build-libs.sh || { echo "Error building libraries"; exit 1; }; cd $BUILDSCRIPTDIR;
+fi
+
+if [ ! -z $CROSSBUILD ] && grep -q "mingw" <<<"$CROSSBUILD" ; then
+	cp -v	$CROSSBINPATH//libwinpthread-1.dll $prefix/bin
 fi
 
 echo "stripping installed binaries"

@@ -22,7 +22,7 @@ do
   echo
   echo "1: devkitARM (gba gp32 ds)"
   echo "2: devkitPPC (gamecube wii)"
-  echo "3: devkitPSP (PSP)"
+  echo "3: devkitA64 (switch)"
   echo "4: devkitSH4 (exword)"
   read VERSION
 
@@ -34,34 +34,35 @@ done
 
 case "$VERSION" in
   "1" )
-    GCC_VER=4.7.2
-    BINUTILS_VER=2.23.1
-    NEWLIB_VER=2.0.0
-    GDB_VER=7.5.1
+    GCC_VER=8.1.0
+    BINUTILS_VER=2.30
+    NEWLIB_VER=3.0.0
+    GDB_VER=8.0
     basedir='dkarm-eabi'
     package=devkitARM
     target=arm-none-eabi
     toolchain=DEVKITARM
   ;;
   "2" )
-    GCC_VER=4.7.2
-    BINUTILS_VER=2.23.1
-    NEWLIB_VER=1.20.0
-    GDB_VER=7.5.1
+    GCC_VER=8.1.0
+    BINUTILS_VER=2.28
+    MN_BINUTILS_VER=2.17
+    NEWLIB_VER=2.5.0
+    GDB_VER=8.0.1
     basedir='dkppc'
     package=devkitPPC
     target=powerpc-eabi
     toolchain=DEVKITPPC
   ;;
   "3" )
-    GCC_VER=4.6.3
-    BINUTILS_VER=2.22
-    NEWLIB_VER=1.20.0
-    GDB_VER=7.4
-    basedir='dkpsp'
-    package=devkitPSP
-    target=psp
-    toolchain=DEVKITPSP
+    GCC_VER=8.1.0
+    BINUTILS_VER=2.30
+    NEWLIB_VER=3.0.0
+    GDB_VER=8.0
+    basedir='dka64'
+    package=devkitA64
+    target=aarch64-none-elf
+    toolchain=DEVKITA64
   ;;
   "4" )
     GCC_VER=4.7.2
