@@ -146,6 +146,23 @@ then
 fi
 
 #---------------------------------------------------------------------------------
+# copy base rulesets
+#---------------------------------------------------------------------------------
+cp -v $BUILDSCRIPTDIR/dksh4/rules/* $prefix
+
+export DEVKITPRO=$TOOLPATH
+export DEVKITSH4=$DEVKITPRO/devkitSH4
+
+#---------------------------------------------------------------------------------
+# Install and build the exword crt
+#---------------------------------------------------------------------------------
+
+echo "installing linkscripts ..."
+cp -v $BUILDSCRIPTDIR/dksh4/crtls/* $prefix/$target/lib/
+cd $prefix/$target/lib/
+$MAKE CRT=exword
+
+#---------------------------------------------------------------------------------
 # build and install the debugger
 #---------------------------------------------------------------------------------
 cd $BUILDDIR

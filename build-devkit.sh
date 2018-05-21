@@ -7,7 +7,7 @@
 #	devkitSH4 release 2
 #---------------------------------------------------------------------------------
 
-if [ "scripts" != "enabled" ] ; then
+if [ "scripts" != "scripts" ] ; then
 	echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
 	echo "https://github.com/devkitPro/buildscripts/releases"
 	echo
@@ -212,7 +212,7 @@ BUILDDIR=$(pwd)/.$package
 if [ ! -z $CROSSBUILD ]; then
 	BUILDDIR=$BUILDDIR-$CROSSBUILD
 fi
-DEVKITPRO_URL="https://github.com/devkitPro/buildscripts/releases/download/sources/"
+DEVKITPRO_URL="https://downloads.devkitpro.org/"
 DATAPLUS_URL="https://github.com/downloads/brijohn/"
 
 patchdir=$(pwd)/$basedir/patches
@@ -306,6 +306,7 @@ done
 
 for archive in $hostarchives
 do
+	archive=`basename $archive`
 	destdir=$(echo $archive | sed -e 's/\(.*\)-src-\(.*\)\.tar\.bz2/\1-\2/' )
 	if [ ! -d $destdir ]; then
 		tar -xjf "$SRCDIR/$archive"
