@@ -1,15 +1,14 @@
 #!/bin/bash
 #---------------------------------------------------------------------------------
-# Build scripts for
-#	devkitARM release 48
-#	devkitPPC release 30
-#	devkitA64 release 9
+#	devkitARM release 49
+#	devkitPPC release 32
+#	devkitA64 release 12
 #	devkitSH4 release 2
 #---------------------------------------------------------------------------------
 
-if [ "scripts" != "scripts" ] ; then
+if [ 0 -eq 1 ] ; then
 	echo "Please use the latest release buildscripts unless advised otherwise by devkitPro staff."
-	echo "https://github.com/devkitPro/buildscripts/releases"
+	echo "https://github.com/devkitPro/buildscripts/releases/latest"
 	echo
 	echo "The scripts in the git repository may be dependent on things which currently only exist"
 	echo "on developer machines. This is not a bug, use stable releases."
@@ -26,15 +25,15 @@ echo
 
 GENERAL_TOOLS_VER=1.0.2
 
-LIBGBA_VER=0.5.0
+LIBGBA_VER=0.5.1
 GBATOOLS_VER=1.1.0
 
-LIBNDS_VER=1.7.1
-DEFAULT_ARM7_VER=0.7.3
+LIBNDS_VER=1.7.2
+DEFAULT_ARM7_VER=0.7.4
 DSWIFI_VER=0.4.2
 MAXMOD_VER=1.0.11
-FILESYSTEM_VER=0.9.13-1
-LIBFAT_VER=1.1.2
+FILESYSTEM_VER=0.9.14
+LIBFAT_VER=1.1.3
 DSTOOLS_VER=1.2.1
 GRIT_VER=0.8.15
 NDSTOOL_VER=2.1.1
@@ -44,7 +43,7 @@ DFU_UTIL_VER=0.9.1
 STLINK_VER=1.2.3
 
 GAMECUBE_TOOLS_VER=1.0.2
-LIBOGC_VER=1.8.17
+LIBOGC_VER=1.8.20
 WIILOAD_VER=0.5.1
 
 LIBCTRU_VER=1.5.0
@@ -56,12 +55,12 @@ PICASSO_VER=2.7.0
 TEX3DS_VER=1.0.0
 
 GP32_TOOLS_VER=1.0.3
-LIBMIRKO_VER=0.9.7
+LIBMIRKO_VER=0.9.8
 
-SWITCH_TOOLS_VER=1.2.0
-LIBNX_VER=1.0.0
+SWITCH_TOOLS_VER=1.4.1
+LIBNX_VER=1.3.0
 
-ELF2D01_VER=1.0.0
+ELF2D01_VER=master
 LIBDATAPLUS_VER=master
 
 OSXMIN=${OSXMIN:-10.9}
@@ -167,10 +166,13 @@ TOOLPATH=$(echo $INSTALLDIR | sed -e 's/^\([a-zA-Z]\):/\/\1/')
 export PATH=$PATH:$TOOLPATH/$package/bin
 
 if [ ! -z $CROSSBUILD ]; then
+	toolsprefix=$INSTALLDIR/$CROSSBUILD/tools
 	prefix=$INSTALLDIR/$CROSSBUILD/$package
+	toolsprefix=$INSTALLDIR/$CROSSBUILD/tools
 	CROSS_PARAMS="--build=`./config.guess` --host=$CROSSBUILD"
 	CROSS_GCC_PARAMS="--with-gmp=$CROSSPATH --with-mpfr=$CROSSPATH --with-mpc=$CROSSPATH"
 else
+	toolsprefix=$INSTALLDIR/tools
 	prefix=$INSTALLDIR/$package
 fi
 
@@ -187,23 +189,25 @@ PLATFORM=`uname -s`
 
 case $PLATFORM in
 	Darwin )
-		cflags="-mmacosx-version-min=${OSXMIN} -I/usr/local/include"
+		cppflags="-mmacosx-version-min=${OSXMIN} -I/usr/local/include"
 		ldflags="-mmacosx-version-min=${OSXMIN} -L/usr/local/lib"
 		if [ "x${OSXSDKPATH}x" != "xx" ]; then
-			cflags="$cflags -isysroot ${OSXSDKPATH}"
+			cppflags="$cppflags -isysroot ${OSXSDKPATH}"
 			ldflags="$ldflags -Wl,-syslibroot,${OSXSDKPATH}"
 		fi
 		TESTCC=`cc -v 2>&1 | grep clang`
 		if [ "x${TESTCC}x" != "xx" ]; then
-			cflags="$cflags -fbracket-depth=512"
+			cppflags="$cppflags -fbracket-depth=512"
 		fi
     ;;
 	MINGW32* )
-		cflags="-D__USE_MINGW_ACCESS"
-# horrid hack to get -flto to work on windows
-		plugin_ld="--with-plugin-ld=ld"
+		cppflags="-D__USE_MINGW_ACCESS"
     ;;
 esac
+
+if [ ! -z $CROSSBUILD ] && grep -q "mingw" <<<"$CROSSBUILD" ; then
+	cppflags="-D__USE_MINGW_ACCESS -D__USE_MINGW_ANSI_STDIO=1"
+fi
 
 
 BUILDSCRIPTDIR=$(pwd)
@@ -218,17 +222,17 @@ DATAPLUS_URL="https://github.com/downloads/brijohn/"
 patchdir=$(pwd)/$basedir/patches
 scriptdir=$(pwd)/$basedir/scripts
 
-archives="binutils-${BINUTILS_VER}.tar.bz2 gcc-${GCC_VER}.tar.xz newlib-${NEWLIB_VER}.tar.gz gdb-${GDB_VER}.tar.xz"
+archives="binutils-${BINUTILS_VER}.tar.xz gcc-${GCC_VER}.tar.xz newlib-${NEWLIB_VER}.tar.gz gdb-${GDB_VER}.tar.xz"
 
 if [ $VERSION -eq 1 ]; then
 
 	targetarchives="libnds-src-${LIBNDS_VER}.tar.bz2 libgba-src-${LIBGBA_VER}.tar.bz2
 		libmirko-src-${LIBMIRKO_VER}.tar.bz2 dswifi-src-${DSWIFI_VER}.tar.bz2 maxmod-src-${MAXMOD_VER}.tar.bz2
-		default_arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
+		default-arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
 		libfat-src-${LIBFAT_VER}.tar.bz2 libctru-src-${LIBCTRU_VER}.tar.bz2  citro3d-src-${CITRO3D_VER}.tar.bz2
 		citro2d-src-${CITRO2D_VER}.tar.bz2"
 
-	hostarchives="gbatools-$GBATOOLS_VER.tar.bz2 gp32tools-$GP32_TOOLS_VER.tar.bz2
+	hostarchives="gba-tools-$GBATOOLS_VER.tar.bz2 gp32-tools-$GP32_TOOLS_VER.tar.bz2
 		dstools-$DSTOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
 		general-tools-$GENERAL_TOOLS_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
 		dfu-util-$DFU_UTIL_VER.tar.bz2 stlink-$STLINK_VER.tar.bz2 3dstools-$TOOLS3DS_VER.tar.bz2
@@ -246,13 +250,15 @@ fi
 
 if [ $VERSION -eq 3 ]; then
 
+	targetarchives=" libnx-src-${LIBNX_VER}.tar.bz2"
+
 	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 switch-tools-$SWITCH_TOOLS_VER.tar.bz2"
 
 fi
 
 if [ $VERSION -eq 4 ]; then
-	gitrepos="git://github.com/brijohn/libdataplus.git:$LIBDATAPLUS_VER"
-	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 ${DATAPLUS_URL}buildscripts/elf2d01-$ELF2D01_VER.tar.bz2"
+	gitrepos="git://github.com/brijohn/libdataplus.git:$LIBDATAPLUS_VER git://github.com/brijohn/elf2d01.git:$ELF2D01_VER"
+	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2"
 fi
 
 if [ ! -z "$BUILD_DKPRO_SRCDIR" ] ; then
@@ -264,12 +270,9 @@ fi
 cd "$SRCDIR"
 for archive in $archives $targetarchives $hostarchives
 do
-	if [ "`dirname $archive`" = "." ]; then
-		archive="${DEVKITPRO_URL}${archive}"
-	fi
-	echo `basename $archive`
-	if [ ! -f `basename $archive` ]; then
-		$FETCH $archive || { echo "Error: Failed to download `basename $archive`"; exit 1; }
+	echo $archive
+	if [ ! -f $archive ]; then
+		$FETCH https://downloads.devkitpro.org/$archive || { echo "Error: Failed to download $archive"; exit 1; }
 	fi
 done
 
@@ -284,7 +287,7 @@ do
 	git_clone_project $url $branch
 done
 
-extract_and_patch binutils $BINUTILS_VER bz2
+extract_and_patch binutils $BINUTILS_VER xz
 extract_and_patch gcc $GCC_VER xz
 extract_and_patch newlib $NEWLIB_VER gz
 extract_and_patch gdb $GDB_VER xz
@@ -355,5 +358,13 @@ fi
 
 
 echo
-echo "note: Add the following to your environment;  DEVKITPRO=$TOOLPATH $toolchain=$TOOLPATH/$package"
+echo "note: Add the following to your environment;"
+echo
+echo "  DEVKITPRO=$TOOLPATH"
+if [ "$toolchain" != "DEVKITA64" ]; then
+echo "  $toolchain=$TOOLPATH/$package"
+fi
+echo
+echo "add $TOOLPATH/tools/bin to your PATH"
+echo
 echo

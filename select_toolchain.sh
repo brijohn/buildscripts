@@ -45,9 +45,9 @@ case "$VERSION" in
   ;;
   "2" )
     GCC_VER=8.1.0
-    BINUTILS_VER=2.28
+    BINUTILS_VER=2.30
     MN_BINUTILS_VER=2.17
-    NEWLIB_VER=2.5.0
+    NEWLIB_VER=3.0.0
     GDB_VER=8.0.1
     basedir='dkppc'
     package=devkitPPC
@@ -55,8 +55,8 @@ case "$VERSION" in
     toolchain=DEVKITPPC
   ;;
   "3" )
-    GCC_VER=8.1.0
-    BINUTILS_VER=2.30
+    GCC_VER=8.2.0
+    BINUTILS_VER=2.31.1
     NEWLIB_VER=3.0.0
     GDB_VER=8.0
     basedir='dka64'
@@ -66,7 +66,7 @@ case "$VERSION" in
   ;;
   "4" )
     GCC_VER=8.1.0
-    BINUTILS_VER=2.28
+    BINUTILS_VER=2.30
     NEWLIB_VER=1.20.0
     GDB_VER=8.0
     basedir='dksh4'

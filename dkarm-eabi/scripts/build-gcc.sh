@@ -10,9 +10,10 @@ cd $target/binutils
 
 if [ ! -f configured-binutils ]
 then
-	CFLAGS=$cflags LDFLAGS=$ldflags ../../binutils-$BINUTILS_VER/configure \
+	CPPFLAGS="$cppflags $CPPFLAGS" LDFLAGS=$ldflags ../../binutils-$BINUTILS_VER/configure \
         --prefix=$prefix --target=$target --disable-nls --disable-werror \
-	--enable-lto --enable-plugins --enable-poison-system-directories \
+	--enable-lto --enable-plugins --enable-gold \
+	--enable-poison-system-directories \
 	$CROSS_PARAMS \
         || { echo "Error configuring binutils"; exit 1; }
 	touch configured-binutils
@@ -39,14 +40,13 @@ cd $target/gcc
 
 if [ ! -f configured-gcc ]
 then
-	CFLAGS="$cflags" \
-	CXXFLAGS="$cflags" \
+	CPPFLAGS="$cppflags $CPPFLAGS" \
 	LDFLAGS="$ldflags" \
 	CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
 	CXXFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
 	LDFLAGS_FOR_TARGET="" \
 	../../gcc-$GCC_VER/configure \
-		--enable-languages=c,c++ \
+		--enable-languages=c,c++,objc,lto \
 		--with-gnu-as --with-gnu-ld --with-gcc \
 		--with-march=armv4t\
 		--enable-cxx-flags='-ffunction-sections' \
@@ -56,13 +56,15 @@ then
 		--enable-threads --disable-win32-registry --disable-nls --disable-debug\
 		--disable-libmudflap --disable-libssp --disable-libgomp \
 		--disable-libstdcxx-pch \
+		--enable-libstdcxx-time=yes \
+		--enable-libstdcxx-filesystem-ts \
 		--target=$target \
 		--with-newlib \
 		--with-headers=../../newlib-$NEWLIB_VER/newlib/libc/include \
 		--prefix=$prefix \
-		--enable-lto $plugin_ld\
+		--enable-lto\
 		--with-system-zlib \
-		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 48" \
+		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 49" \
 		$CROSS_PARAMS \
 		$CROSS_GCC_PARAMS \
 		|| { echo "Error configuring gcc"; exit 1; }
@@ -192,8 +194,7 @@ PLATFORM=`uname -s`
 
 if [ ! -f configured-gdb ]
 then
-	CFLAGS="$cflags" \
-	CXXFLAGS="$cflags" \
+	CPPFLAGS="$cppflags $CPPFLAGS" \
 	LDFLAGS="$ldflags" \
 	../../gdb-$GDB_VER/configure \
 	--disable-nls --prefix=$prefix --target=$target --disable-werror \

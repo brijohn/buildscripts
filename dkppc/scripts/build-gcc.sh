@@ -82,20 +82,22 @@ then
 	CXXFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
 	LDFLAGS_FOR_TARGET="" \
 	../../gcc-$GCC_VER/configure \
-	--enable-languages=c,c++,objc \
-	--enable-lto $plugin_ld \
+	--enable-languages=c,c++,objc,lto \
+	--enable-lto \
 	--with-cpu=750 \
-	--disable-nls --disable-shared --enable-threads --disable-multilib \
+	--disable-nls --disable-shared --enable-threads=dkp --disable-multilib \
 	--disable-win32-registry \
 	--disable-libstdcxx-pch \
 	--disable-libstdcxx-verbose \
+	--enable-libstdcxx-time=yes \
+	--enable-libstdcxx-filesystem-ts \
 	--enable-cxx-flags='-ffunction-sections -fdata-sections' \
 	--target=$target \
 	--with-newlib \
 	--with-headers=../../newlib-$NEWLIB_VER/newlib/libc/include \
 	--prefix=$prefix\
 	--with-system-zlib\
-	--with-bugurl="https://github.com/devkitpro/buildscripts/issues" --with-pkgversion="devkitPPC release 30" \
+	--with-bugurl="https://github.com/devkitpro/buildscripts/issues" --with-pkgversion="devkitPPC release 32" \
 	$CROSS_PARAMS \
 	$CROSS_GCC_PARAMS \
         CFLAGS_FOR_TARGET="-O2 -ffunction-sections -fdata-sections" \
@@ -137,7 +139,6 @@ then
 	--target=$target \
 	--prefix=$prefix \
 	--enable-newlib-mb \
-	--enable-newlib-hw-fp \
 	|| { echo "Error configuring newlib"; exit 1; }
 	touch configured-newlib
 fi
@@ -201,7 +202,8 @@ if [ ! -f configured-gdb ]
 then
 	CFLAGS="$cflags" LDFLAGS="$ldflags" ../../gdb-$GDB_VER/configure \
 	--disable-nls --prefix=$prefix --target=$target --disable-werror \
-	$CROSS_PARAMS || { echo "Error configuring gdb"; exit 1; }
+	$CROSS_PARAMS \
+	$CROSS_GCC_PARAMS || { echo "Error configuring gdb"; exit 1; }
 	touch configured-gdb
 fi
 
