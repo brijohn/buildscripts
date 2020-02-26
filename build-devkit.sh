@@ -1,8 +1,8 @@
 #!/bin/bash
 #---------------------------------------------------------------------------------
-#	devkitARM release 49
-#	devkitPPC release 32
-#	devkitA64 release 12
+#	devkitARM release 53-1
+#	devkitPPC release 35
+#	devkitA64 release 14
 #	devkitSH4 release 2
 #---------------------------------------------------------------------------------
 
@@ -19,21 +19,19 @@ echo "Please note, these scripts are provided as a courtesy, toolchains built wi
 echo "are for personal use only and may not be distributed by entities other than devkitPro."
 echo "See http://devkitpro.org/wiki/Trademarks"
 echo
+echo "Users should use devkitPro pacman to maintain toolchain installations where possible"
+echo "See https://devkitpro.org/wiki/devkitPro_pacman"
+echo
 echo "Patches and improvements are of course welcome, please submit a PR"
 echo "https://github.com/devkitPro/buildscripts/pulls"
 echo
 
 GENERAL_TOOLS_VER=1.0.2
 
-LIBGBA_VER=0.5.1
 GBATOOLS_VER=1.1.0
+DKARM_RULES_VER=1.0.0
+DKARM_CRTLS_VER=1.0.0
 
-LIBNDS_VER=1.7.2
-DEFAULT_ARM7_VER=0.7.4
-DSWIFI_VER=0.4.2
-MAXMOD_VER=1.0.11
-FILESYSTEM_VER=0.9.14
-LIBFAT_VER=1.1.3
 DSTOOLS_VER=1.2.1
 GRIT_VER=0.8.15
 NDSTOOL_VER=2.1.1
@@ -43,12 +41,9 @@ DFU_UTIL_VER=0.9.1
 STLINK_VER=1.2.3
 
 GAMECUBE_TOOLS_VER=1.0.2
-LIBOGC_VER=1.8.20
 WIILOAD_VER=0.5.1
+DKPPC_RULES_VER=1.0.0
 
-LIBCTRU_VER=1.5.0
-CITRO3D_VER=1.4.0
-CITRO2D_VER=1.0.0
 TOOLS3DS_VER=1.1.4
 LINK3DS_VER=0.5.2
 PICASSO_VER=2.7.0
@@ -58,7 +53,6 @@ GP32_TOOLS_VER=1.0.3
 LIBMIRKO_VER=0.9.8
 
 SWITCH_TOOLS_VER=1.4.1
-LIBNX_VER=1.3.0
 
 ELF2D01_VER=master
 LIBDATAPLUS_VER=master
@@ -165,11 +159,13 @@ export MAKE
 TOOLPATH=$(echo $INSTALLDIR | sed -e 's/^\([a-zA-Z]\):/\/\1/')
 export PATH=$PATH:$TOOLPATH/$package/bin
 
+CROSS_PARAMS="--build=`./config.guess`"
+
 if [ ! -z $CROSSBUILD ]; then
 	toolsprefix=$INSTALLDIR/$CROSSBUILD/tools
 	prefix=$INSTALLDIR/$CROSSBUILD/$package
 	toolsprefix=$INSTALLDIR/$CROSSBUILD/tools
-	CROSS_PARAMS="--build=`./config.guess` --host=$CROSSBUILD"
+	CROSS_PARAMS="$CROSS_PARAMS --host=$CROSSBUILD"
 	CROSS_GCC_PARAMS="--with-gmp=$CROSSPATH --with-mpfr=$CROSSPATH --with-mpc=$CROSSPATH"
 else
 	toolsprefix=$INSTALLDIR/tools
@@ -226,31 +222,23 @@ archives="binutils-${BINUTILS_VER}.tar.xz gcc-${GCC_VER}.tar.xz newlib-${NEWLIB_
 
 if [ $VERSION -eq 1 ]; then
 
-	targetarchives="libnds-src-${LIBNDS_VER}.tar.bz2 libgba-src-${LIBGBA_VER}.tar.bz2
-		libmirko-src-${LIBMIRKO_VER}.tar.bz2 dswifi-src-${DSWIFI_VER}.tar.bz2 maxmod-src-${MAXMOD_VER}.tar.bz2
-		default-arm7-src-${DEFAULT_ARM7_VER}.tar.bz2 libfilesystem-src-${FILESYSTEM_VER}.tar.bz2
-		libfat-src-${LIBFAT_VER}.tar.bz2 libctru-src-${LIBCTRU_VER}.tar.bz2  citro3d-src-${CITRO3D_VER}.tar.bz2
-		citro2d-src-${CITRO2D_VER}.tar.bz2"
-
 	hostarchives="gba-tools-$GBATOOLS_VER.tar.bz2 gp32-tools-$GP32_TOOLS_VER.tar.bz2
 		dstools-$DSTOOLS_VER.tar.bz2 grit-$GRIT_VER.tar.bz2 ndstool-$NDSTOOL_VER.tar.bz2
 		general-tools-$GENERAL_TOOLS_VER.tar.bz2 mmutil-$MMUTIL_VER.tar.bz2
 		dfu-util-$DFU_UTIL_VER.tar.bz2 stlink-$STLINK_VER.tar.bz2 3dstools-$TOOLS3DS_VER.tar.bz2
 		picasso-$PICASSO_VER.tar.bz2 tex3ds-$TEX3DS_VER.tar.bz2 3dslink-$LINK3DS_VER.tar.bz2"
+
+	archives="devkitarm-rules-$DKARM_RULES_VER.tar.xz devkitarm-crtls-$DKARM_CRTLS_VER.tar.xz $archives"
 fi
 
 if [ $VERSION -eq 2 ]; then
 
-	targetarchives="libogc-src-${LIBOGC_VER}.tar.bz2 libfat-src-${LIBFAT_VER}.tar.bz2"
-
 	hostarchives="gamecube-tools-$GAMECUBE_TOOLS_VER.tar.bz2 wiiload-$WIILOAD_VER.tar.bz2 general-tools-$GENERAL_TOOLS_VER.tar.bz2"
 
-	archives="binutils-${MN_BINUTILS_VER}.tar.bz2 $archives"
+	archives="binutils-${MN_BINUTILS_VER}.tar.bz2 devkitppc-rules-$DKPPC_RULES_VER.tar.xz $archives"
 fi
 
 if [ $VERSION -eq 3 ]; then
-
-	targetarchives=" libnx-src-${LIBNX_VER}.tar.bz2"
 
 	hostarchives="general-tools-$GENERAL_TOOLS_VER.tar.bz2 switch-tools-$SWITCH_TOOLS_VER.tar.bz2"
 
@@ -268,7 +256,7 @@ else
 fi
 
 cd "$SRCDIR"
-for archive in $archives $targetarchives $hostarchives
+for archive in $archives $hostarchives
 do
 	echo $archive
 	if [ ! -f $archive ]; then
@@ -325,9 +313,7 @@ if [ "$BUILD_DKPRO_SKIP_TOOLS" != "1" ] && [ -f $scriptdir/build-tools.sh ]; the
  . $scriptdir/build-tools.sh || { echo "Error building tools"; exit 1; }; cd $BUILDSCRIPTDIR;
 fi
 
-if [ "$BUILD_DKPRO_SKIP_LIBRARIES" != "1" ] && [ -f $scriptdir/build-libs.sh ]; then
-  . $scriptdir/build-libs.sh || { echo "Error building libraries"; exit 1; }; cd $BUILDSCRIPTDIR;
-fi
+cd $BUILDSCRIPTDIR
 
 if [ ! -z $CROSSBUILD ] && grep -q "mingw" <<<"$CROSSBUILD" ; then
 	cp -v	$CROSSBINPATH//libwinpthread-1.dll $prefix/bin

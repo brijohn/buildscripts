@@ -12,7 +12,7 @@ if [ ! -f configured-binutils ]
 then
 	CPPFLAGS="$cppflags $CPPFLAGS" LDFLAGS=$ldflags ../../binutils-$BINUTILS_VER/configure \
         --prefix=$prefix --target=$target --disable-nls --disable-werror \
-	--enable-lto --enable-plugins --enable-gold \
+	--enable-lto --enable-plugins \
 	--enable-poison-system-directories \
 	$CROSS_PARAMS \
         || { echo "Error configuring binutils"; exit 1; }
@@ -64,7 +64,7 @@ then
 		--prefix=$prefix \
 		--enable-lto\
 		--with-system-zlib \
-		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 49" \
+		--with-bugurl="http://wiki.devkitpro.org/index.php/Bug_Reports" --with-pkgversion="devkitARM release 53" \
 		$CROSS_PARAMS \
 		$CROSS_GCC_PARAMS \
 		|| { echo "Error configuring gcc"; exit 1; }
@@ -148,39 +148,6 @@ then
 fi
 
 rm -fr $prefix/$target/sys-include
-
-cd $BUILDDIR
-
-
-#---------------------------------------------------------------------------------
-# copy base rulesets
-#---------------------------------------------------------------------------------
-cp -v $BUILDSCRIPTDIR/dkarm-eabi/rules/* $prefix
-
-
-#---------------------------------------------------------------------------------
-# set env variables
-#---------------------------------------------------------------------------------
-export DEVKITPRO=$TOOLPATH
-export DEVKITARM=$DEVKITPRO/devkitARM
-
-#---------------------------------------------------------------------------------
-# Install and build the crt0 files
-#---------------------------------------------------------------------------------
-
-cp -v $BUILDSCRIPTDIR/dkarm-eabi/crtls/* $prefix/$target/lib/
-cd $prefix/$target/lib/
-
-
-$MAKE CRT=gba
-$MAKE CRT=gp32
-$MAKE CRT=er
-$MAKE CRT=gp32_gpsdk
-$MAKE CRT=ds_arm7
-$MAKE CRT=ds_arm9
-$MAKE CRT=ds_cart
-$MAKE ds_arm7_vram_crt0
-$MAKE 3dsx_crt0
 
 cd $BUILDDIR
 

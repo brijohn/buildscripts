@@ -1,8 +1,8 @@
 diff --git a/libgloss/configure b/libgloss/configure
-index aa6f8f834..0e8579890 100755
+index 1a4033dce..ba7aea7b0 100755
 --- a/libgloss/configure
 +++ b/libgloss/configure
-@@ -2594,6 +2594,8 @@ if test "${config_libnosys}" = "true"; then
+@@ -2599,6 +2599,8 @@ if test "${config_libnosys}" = "true"; then
  
  fi
  
@@ -12,7 +12,7 @@ index aa6f8f834..0e8579890 100755
  
  ac_config_commands="$ac_config_commands depfiles"
 diff --git a/libgloss/configure.in b/libgloss/configure.in
-index 6da164352..f18f17447 100644
+index 41843eed1..dc0e2a5fd 100644
 --- a/libgloss/configure.in
 +++ b/libgloss/configure.in
 @@ -2,6 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
@@ -23,7 +23,7 @@ index 6da164352..f18f17447 100644
  
  if test "${enable_shared}" = "yes" ; then
      echo "Shared libraries not supported for cross compiling, ignored"
-@@ -187,6 +188,7 @@ dnl fi
+@@ -190,6 +191,7 @@ dnl fi
  if test "${config_libnosys}" = "true"; then
    AC_CONFIG_SUBDIRS([libnosys])
  fi
@@ -33,7 +33,7 @@ index 6da164352..f18f17447 100644
  AS=${AS-as}
 diff --git a/libgloss/libsysbase/Makefile.in b/libgloss/libsysbase/Makefile.in
 new file mode 100644
-index 000000000..0d2be31c6
+index 000000000..7ee40deec
 --- /dev/null
 +++ b/libgloss/libsysbase/Makefile.in
 @@ -0,0 +1,148 @@
@@ -104,7 +104,7 @@ index 000000000..0d2be31c6
 +	else t='$(program_transform_name)'; echo objcopy | sed -e $$t ; fi`
 +
 +# object files needed
-+OBJS = abort.o iosupport.o clocks.o close.o environ.o execve.o fork.o fstat.o getpid.o gettod.o \
++OBJS = abort.o iosupport.o clocks.o environ.o execve.o fork.o fstat.o getpid.o gettod.o \
 +	isatty.o kill.o link.o lseek.o lstat.o nanosleep.o open.o read.o sbrk.o sleep.o stat.o usleep.o times.o \
 +	unlink.o wait.o write.o _exit.o malloc_vars.o \
 +	chdir.o mkdir.o rename.o build_argv.o statvfs.o \
@@ -927,58 +927,6 @@ index 000000000..01cfee469
 +   }
 +}
 +
-diff --git a/libgloss/libsysbase/close.c b/libgloss/libsysbase/close.c
-new file mode 100644
-index 000000000..931ad07b1
---- /dev/null
-+++ b/libgloss/libsysbase/close.c
-@@ -0,0 +1,46 @@
-+#include "config.h"
-+#include <_ansi.h>
-+#include <_syslist.h>
-+#include <stdio.h>
-+#include <errno.h>
-+
-+#include <sys/iosupport.h>
-+
-+#ifdef REENTRANT_SYSCALLS_PROVIDED
-+//---------------------------------------------------------------------------------
-+int _close_r(struct _reent *ptr, int fileDesc) {
-+//---------------------------------------------------------------------------------
-+#else
-+//---------------------------------------------------------------------------------
-+int _close(int fileDesc) {
-+//---------------------------------------------------------------------------------
-+	struct _reent *ptr = _REENT;
-+#endif
-+	int ret = -1;
-+	unsigned int dev = 0;
-+
-+	if(fileDesc!=-1) {
-+
-+		__handle *handle = __get_handle(fileDesc);
-+
-+		if ( handle != NULL) {
-+			dev = handle->device;
-+			handle->refcount--;
-+			if (handle->refcount == 0 ) {
-+
-+				if(devoptab_list[dev]->close_r) {
-+					ptr->deviceData = devoptab_list[dev]->deviceData;
-+					ret = devoptab_list[dev]->close_r(ptr,handle->fileStruct);
-+				}
-+				else
-+					ret = 0;
-+
-+				__release_handle(fileDesc);
-+			} else {
-+				ret = 0;
-+			}
-+
-+		}
-+	}
-+	return ret;
-+}
 diff --git a/libgloss/libsysbase/config.h.in b/libgloss/libsysbase/config.h.in
 new file mode 100644
 index 000000000..48ce950b4
@@ -1012,7 +960,7 @@ index 000000000..48ce950b4
 +#undef __SYMBOL_PREFIX
 diff --git a/libgloss/libsysbase/configure b/libgloss/libsysbase/configure
 new file mode 100644
-index 000000000..c4b5a79b6
+index 000000000..7fe331552
 --- /dev/null
 +++ b/libgloss/libsysbase/configure
 @@ -0,0 +1,4158 @@
@@ -1599,7 +1547,7 @@ index 000000000..c4b5a79b6
 +PACKAGE_BUGREPORT=
 +PACKAGE_URL=
 +
-+ac_unique_file="close.c"
++ac_unique_file="abort.c"
 +ac_subst_vars='LTLIBOBJS
 +LIBOBJS
 +host_makefile_frag_path
@@ -5176,7 +5124,7 @@ index 000000000..c4b5a79b6
 +
 diff --git a/libgloss/libsysbase/configure.in b/libgloss/libsysbase/configure.in
 new file mode 100644
-index 000000000..bf276a413
+index 000000000..3da91ed98
 --- /dev/null
 +++ b/libgloss/libsysbase/configure.in
 @@ -0,0 +1,199 @@
@@ -5195,7 +5143,7 @@ index 000000000..bf276a413
 +# Process this file with autoconf to produce a configure script.
 +#
 +AC_PREREQ(2.59)
-+AC_INIT(close.c)
++AC_INIT(abort.c)
 +AC_CONFIG_HEADER(config.h)
 +
 +if test "${enable_shared}" = "yes" ; then
@@ -6001,10 +5949,13 @@ index 000000000..9d5b74724
 +
 diff --git a/libgloss/libsysbase/handle_manager.c b/libgloss/libsysbase/handle_manager.c
 new file mode 100644
-index 000000000..f3fcc88f7
+index 000000000..6bf9ab89e
 --- /dev/null
 +++ b/libgloss/libsysbase/handle_manager.c
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,229 @@
++#include "config.h"
++#include <_ansi.h>
++#include <_syslist.h>
 +#include <stdlib.h>
 +#include <stdio.h>
 +#include <errno.h>
@@ -6025,7 +5976,7 @@ index 000000000..f3fcc88f7
 +
 +__LOCK_INIT(static, __hndl_lock);
 +
-+void __free_handle(__handle *handle) {
++static void __free_handle(__handle *handle) {
 +
 +	if ( NULL != handle
 +	&& handle != &__stdin_handle
@@ -6093,8 +6044,11 @@ index 000000000..f3fcc88f7
 +
 +	if ( fd < 0 || fd >= MAX_HANDLES ) return NULL;
 +
-+	return handles[fd];
++	__lock_acquire (__hndl_lock);
++	__handle *handle = handles[fd];
++	__lock_release (__hndl_lock);
 +
++	return handle;
 +}
 +
 +int dup(int oldfd) {
@@ -6126,57 +6080,107 @@ index 000000000..f3fcc88f7
 +
 +int dup2(int oldfd, int newfd) {
 +
-+
-+	__lock_acquire (__hndl_lock);
-+
 +	if ( newfd < 0 || newfd >= MAX_HANDLES ||
++		 oldfd < 0 || oldfd >= MAX_HANDLES) {
 +
-+		 oldfd < 0 || oldfd >= MAX_HANDLES ||
-+		 handles[oldfd] == NULL ) {
-+
-+		__lock_release (__hndl_lock);
 +		errno = EBADF;
 +
 +		return -1;
 +	}
 +
 +	if ( newfd == oldfd ) {
-+		__lock_release (__hndl_lock);
 +		return newfd;
 +	}
 +
++	__lock_acquire (__hndl_lock);
++
++	if ( handles[oldfd] == NULL ) {
++		__lock_release (__hndl_lock);
++		errno = EBADF;
++
++		return -1;
++	}
 +
 +	__handle *handle = handles[newfd];
-+
-+	if ( NULL != handle ) {
-+
-+		handle->refcount--;
-+
-+	}
 +
 +	handles[newfd] = handles[oldfd];
 +	handles[newfd]->refcount++;
 +
-+	__lock_release (__hndl_lock);
++	if ( handle ) {
 +
-+	if ( NULL != handle ) {
++		int ref = --handle->refcount;
++		__lock_release (__hndl_lock);
 +
-+		if (handle->refcount == 0 ) {
++		if ( ref == 0 ) {
 +
-+			if( devoptab_list[handle->device]->close_r != NULL) {
++			if ( devoptab_list[handle->device]->close_r ) {
 +
++				_REENT->deviceData = devoptab_list[handle->device]->deviceData;
 +				devoptab_list[handle->device]->close_r(_REENT,handle->fileStruct);
 +
-+			} else {
-+
-+				__free_handle(handle);
-+
 +			}
++
++			__free_handle(handle);
 +		}
++
++	} else {
++
++		__lock_release (__hndl_lock);
++
 +	}
 +
 +	return newfd;
++}
 +
++#ifdef REENTRANT_SYSCALLS_PROVIDED
++//---------------------------------------------------------------------------------
++int _close_r(struct _reent *ptr, int fd) {
++//---------------------------------------------------------------------------------
++#else
++//---------------------------------------------------------------------------------
++int _close(int fd) {
++//---------------------------------------------------------------------------------
++	struct _reent *ptr = _REENT;
++#endif
++	int ret = 0;
++
++	if (fd < 0 || fd >= MAX_HANDLES) {
++
++		ptr->_errno = EBADF;
++		return -1;
++
++	}
++
++	__lock_acquire (__hndl_lock);
++
++	__handle *handle = handles[fd];
++
++	if ( !handle ) {
++
++		__lock_release (__hndl_lock);
++		ptr->_errno = EBADF;
++		return -1;
++
++	}
++
++	int ref = --handle->refcount;
++	handles[fd] = NULL;
++
++	__lock_release (__hndl_lock);
++
++	if ( ref == 0 ) {
++
++		if ( devoptab_list[handle->device]->close_r ) {
++
++			ptr->deviceData = devoptab_list[handle->device]->deviceData;
++			ret = devoptab_list[handle->device]->close_r(ptr,handle->fileStruct);
++
++		}
++
++		__free_handle(handle);
++	}
++
++	return ret;
 +}
 diff --git a/libgloss/libsysbase/iosupport.c b/libgloss/libsysbase/iosupport.c
 new file mode 100644
@@ -7404,10 +7408,10 @@ index 000000000..61de918bc
 +	return ret;
 +}
 diff --git a/newlib/configure.host b/newlib/configure.host
-index eb645868b..9cb69fde9 100644
+index 6c49cb750..6a5e1c78d 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
-@@ -631,6 +631,14 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -666,6 +666,14 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=syscalls
  	default_newlib_io_long_long="yes"
  	;;
@@ -7423,7 +7427,7 @@ index eb645868b..9cb69fde9 100644
  	syscall_dir=syscalls
  	;;
 diff --git a/newlib/libc/include/stdio.h b/newlib/libc/include/stdio.h
-index cbc0fa989..10960f912 100644
+index 164d95bca..083e48758 100644
 --- a/newlib/libc/include/stdio.h
 +++ b/newlib/libc/include/stdio.h
 @@ -233,7 +233,7 @@ int	fsetpos (FILE *, const _fpos_t *);
@@ -7436,7 +7440,7 @@ index cbc0fa989..10960f912 100644
  void	clearerr (FILE *);
  int	feof (FILE *);
 diff --git a/newlib/libc/include/sys/config.h b/newlib/libc/include/sys/config.h
-index 2082dfdb1..e535f189b 100644
+index 49b62ebf6..d84ffaa59 100644
 --- a/newlib/libc/include/sys/config.h
 +++ b/newlib/libc/include/sys/config.h
 @@ -4,6 +4,9 @@
@@ -7516,7 +7520,7 @@ index a3fb5c02c..5debd1525 100644
 +
 +#endif // _dirent_h_
 diff --git a/newlib/libc/include/sys/features.h b/newlib/libc/include/sys/features.h
-index 2900b332f..6efb54eb3 100644
+index f28dd071b..96980676d 100644
 --- a/newlib/libc/include/sys/features.h
 +++ b/newlib/libc/include/sys/features.h
 @@ -330,6 +330,9 @@ extern "C" {
@@ -7531,7 +7535,7 @@ index 2900b332f..6efb54eb3 100644
  #ifdef __rtems__
 diff --git a/newlib/libc/include/sys/iosupport.h b/newlib/libc/include/sys/iosupport.h
 new file mode 100644
-index 000000000..ee14d2610
+index 000000000..c190fa37d
 --- /dev/null
 +++ b/newlib/libc/include/sys/iosupport.h
 @@ -0,0 +1,112 @@
@@ -7547,13 +7551,13 @@ index 000000000..ee14d2610
 +#include <reent.h>
 +#include <sys/stat.h>
 +#include <sys/statvfs.h>
-+#include <time.h>
++#include <sys/time.h>
 +
 +enum	{
 +	STD_IN,
 +	STD_OUT,
 +	STD_ERR,
-+	STD_MAX = 16
++	STD_MAX = 35
 +};
 +
 +
@@ -7648,7 +7652,7 @@ index 000000000..ee14d2610
 +#endif // __iosupp_h__
 +//---------------------------------------------------------------------------------
 diff --git a/newlib/libc/include/sys/reent.h b/newlib/libc/include/sys/reent.h
-index 1ef226194..ce3721a14 100644
+index 6e55e1c1f..6e0c1c9cf 100644
 --- a/newlib/libc/include/sys/reent.h
 +++ b/newlib/libc/include/sys/reent.h
 @@ -416,6 +416,8 @@ struct _reent
@@ -7659,8 +7663,8 @@ index 1ef226194..ce3721a14 100644
 +  void *deviceData;
  };
  
- extern const struct __sFILE_fake __sf_fake_stdin;
-@@ -647,6 +649,7 @@ struct _reent
+ #ifdef _REENT_GLOBAL_STDIO_STREAMS
+@@ -686,6 +688,7 @@ struct _reent
  # ifndef _REENT_GLOBAL_STDIO_STREAMS
    __FILE __sf[3];  		/* first three file descriptors */
  # endif
@@ -7752,10 +7756,10 @@ index 5e937f103..635a7a6b8 100644
  };
  #endif
 diff --git a/newlib/libc/locale/locale.c b/newlib/libc/locale/locale.c
-index baa5451a6..a11f89473 100644
+index 4c343e462..c04493460 100644
 --- a/newlib/libc/locale/locale.c
 +++ b/newlib/libc/locale/locale.c
-@@ -91,7 +91,7 @@ beginning with <<"LC_">>.
+@@ -92,7 +92,7 @@ beginning with <<"LC_">>.
  
  <<localeconv>> returns a pointer to a structure (also defined in
  `<<locale.h>>') describing the locale-specific conventions currently
@@ -7764,7 +7768,7 @@ index baa5451a6..a11f89473 100644
  
  <<_localeconv_r>> and <<_setlocale_r>> are reentrant versions of
  <<localeconv>> and <<setlocale>> respectively.  The extra argument
-@@ -165,15 +165,18 @@ No supporting OS subroutines are required.
+@@ -166,15 +166,18 @@ No supporting OS subroutines are required.
  #include "../ctype/ctype_.h"
  #include "../stdlib/local.h"
  
@@ -7783,7 +7787,7 @@ index baa5451a6..a11f89473 100644
  #ifdef _MB_CAPABLE
  /*
   * Category names for getenv()
-@@ -193,7 +196,11 @@ static char *categories[_LC_LAST] = {
+@@ -194,7 +197,11 @@ static char *categories[_LC_LAST] = {
   * Default locale per POSIX.  Can be overridden on a per-target base.
   */
  #ifndef DEFAULT_LOCALE
@@ -7796,7 +7800,7 @@ index baa5451a6..a11f89473 100644
  #endif
  
  #ifdef _MB_CAPABLE
-@@ -206,8 +213,13 @@ char __default_locale[ENCODING_LEN + 1] = DEFAULT_LOCALE;
+@@ -207,8 +214,13 @@ char __default_locale[ENCODING_LEN + 1] = DEFAULT_LOCALE;
  const struct __locale_t __C_locale =
  {
    { "C", "C", "C", "C", "C", "C", "C", },
@@ -7810,7 +7814,7 @@ index baa5451a6..a11f89473 100644
    0,
    DEFAULT_CTYPE_PTR,
    {
-@@ -218,9 +230,15 @@ const struct __locale_t __C_locale =
+@@ -219,9 +231,15 @@ const struct __locale_t __C_locale =
      CHAR_MAX, CHAR_MAX
    },
  #ifndef __HAVE_LOCALE_INFO__
@@ -7826,7 +7830,7 @@ index baa5451a6..a11f89473 100644
  #else /* __HAVE_LOCALE_INFO__ */
    {
      { NULL, NULL },			/* LC_ALL */
-@@ -239,10 +257,11 @@ const struct __locale_t __C_locale =
+@@ -240,10 +258,11 @@ const struct __locale_t __C_locale =
  };
  #endif /* _MB_CAPABLE */
  
@@ -7839,7 +7843,7 @@ index baa5451a6..a11f89473 100644
    __utf8_wctomb,
    __utf8_mbtowc,
  #else
-@@ -259,9 +278,15 @@ struct __locale_t __global_locale =
+@@ -260,9 +279,15 @@ struct __locale_t __global_locale =
      CHAR_MAX, CHAR_MAX
    },
  #ifndef __HAVE_LOCALE_INFO__
@@ -7855,7 +7859,7 @@ index baa5451a6..a11f89473 100644
  #else /* __HAVE_LOCALE_INFO__ */
    {
      { NULL, NULL },			/* LC_ALL */
-@@ -295,7 +320,7 @@ _setlocale_r (struct _reent *p,
+@@ -296,7 +321,7 @@ _setlocale_r (struct _reent *p,
  {
  #ifndef _MB_CAPABLE
    if (locale)
@@ -7864,7 +7868,7 @@ index baa5451a6..a11f89473 100644
        if (strcmp (locale, "POSIX") && strcmp (locale, "C")
  	  && strcmp (locale, ""))
          return NULL;
-@@ -982,6 +1007,7 @@ __locale_ctype_ptr_l (struct __locale_t *locale)
+@@ -990,6 +1015,7 @@ __locale_ctype_ptr_l (struct __locale_t *locale)
  
  const char *
  __locale_ctype_ptr (void)
@@ -7932,17 +7936,15 @@ index d9dbcd5c3..43712f813 100644
  
 diff --git a/newlib/libc/machine/arm/sync_synchronize.c b/newlib/libc/machine/arm/sync_synchronize.c
 new file mode 100644
-index 000000000..3acc9e094
+index 000000000..f5a85c3a8
 --- /dev/null
 +++ b/newlib/libc/machine/arm/sync_synchronize.c
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,8 @@
 +#if __ARM_ARCH < 6
 +#include <sys/cdefs.h>
 +void __attribute__((weak))
 +__sync_synchronize (void)
 +{
-+  __warn_references (__sync_synchronize,
-+		     "legacy compatible __sync_synchronize used. Not suitable for multi-threaded applications");
 +  return;
 +}
 +#endif
@@ -8093,7 +8095,7 @@ index c4bf2dbe3..d756df37d 100644
  			if (ch == 'S' || (flags & LONGINT)) {
  				mbstate_t ps;
 diff --git a/newlib/libc/stdio/vfscanf.c b/newlib/libc/stdio/vfscanf.c
-index b97235559..298f68a9c 100644
+index 9c38eebf4..fbc8d877d 100644
 --- a/newlib/libc/stdio/vfscanf.c
 +++ b/newlib/libc/stdio/vfscanf.c
 @@ -74,6 +74,8 @@ These are GNU extensions.
@@ -8120,7 +8122,7 @@ index 980b31e3b..722be905e 100644
  
  #ifdef INTEGER_ONLY
 diff --git a/newlib/libc/stdio/vfwscanf.c b/newlib/libc/stdio/vfwscanf.c
-index c3470a15c..626f13723 100644
+index 0464b0837..435fc0142 100644
 --- a/newlib/libc/stdio/vfwscanf.c
 +++ b/newlib/libc/stdio/vfwscanf.c
 @@ -74,6 +74,9 @@ PORTABILITY

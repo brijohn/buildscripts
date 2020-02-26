@@ -1,29 +1,29 @@
 diff --git a/gdb/Makefile.in b/gdb/Makefile.in
-index 1d2dbaf3f7..2d24f09c1b 100644
+index 9799a7a65d..ccd3f8a626 100644
 --- a/gdb/Makefile.in
 +++ b/gdb/Makefile.in
-@@ -779,6 +779,7 @@ ALL_64_TARGET_OBS = \
- ALL_TARGET_OBS = \
- 	arc-tdep.o \
- 	arm.o \
+@@ -684,6 +684,7 @@ ALL_TARGET_OBS = \
+ 	arch/arm-linux.o \
+ 	arch/i386.o \
+ 	arch/ppc-linux-common.o \
 +	arm-3ds-tdep.o \
  	arm-bsd-tdep.o \
- 	arm-get-next-pcs.o \
- 	arm-linux.o \
-@@ -2487,6 +2488,7 @@ ALLDEPFILES = \
+ 	arm-fbsd-tdep.o \
+ 	arm-linux-tdep.o \
+@@ -2213,6 +2214,7 @@ ALLDEPFILES = \
  	amd64-tdep.c \
  	arc-tdep.c \
  	arm.c \
 +	arm-3ds-tdep.c \
  	arm-bsd-tdep.c \
- 	arm-get-next-pcs.c \
- 	arm-linux.c \
+ 	arm-fbsd-nat.c \
+ 	arm-fbsd-tdep.c \
 diff --git a/gdb/arm-3ds-tdep.c b/gdb/arm-3ds-tdep.c
 new file mode 100644
-index 0000000000..ad014e28db
+index 0000000000..c41336982b
 --- /dev/null
 +++ b/gdb/arm-3ds-tdep.c
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,291 @@
 +/* Target-dependent code for 3DS. */
 +
 +/* This uses code from GDB, which license is: */
@@ -71,6 +71,32 @@ index 0000000000..ad014e28db
 +  NULL,
 +};
 +
++/* single_step() is called just before we want to resume the inferior,
++   if we want to single-step it but there is no hardware or kernel
++   single-step support.  We find the target of the coming instructions
++   and breakpoint them.  */
++
++std::vector<CORE_ADDR>
++arm_3ds_software_single_step (struct regcache *regcache)
++{
++  struct gdbarch *gdbarch = regcache->arch ();
++  struct arm_get_next_pcs next_pcs_ctx;
++
++  arm_get_next_pcs_ctor (&next_pcs_ctx,
++			 &arm_3ds_get_next_pcs_ops,
++			 gdbarch_byte_order (gdbarch),
++			 gdbarch_byte_order_for_code (gdbarch),
++			 0,
++			 regcache);
++
++  std::vector<CORE_ADDR> next_pcs = arm_get_next_pcs (&next_pcs_ctx);
++
++  for (CORE_ADDR &pc_ref : next_pcs)
++    pc_ref = gdbarch_addr_bits_remove (gdbarch, pc_ref);
++
++  return next_pcs;
++}
++
 +static CORE_ADDR
 +arm_3ds_get_next_pcs_syscall_next_pc (struct arm_get_next_pcs *self)
 +{
@@ -95,48 +121,11 @@ index 0000000000..ad014e28db
 +  return next_pc;
 +}
 +
-+static VEC (CORE_ADDR) *
-+arm_3ds_software_single_step (struct regcache *regcache)
-+{
-+  struct gdbarch *gdbarch = get_regcache_arch (regcache);
-+  struct arm_get_next_pcs next_pcs_ctx;
-+  CORE_ADDR pc;
-+  int i;
-+  VEC (CORE_ADDR) *next_pcs = NULL;
-+  struct cleanup *old_chain;
-+
-+  /* If the target does have hardware single step, GDB doesn't have
-+     to bother software single step.  */
-+  if (target_can_do_single_step () == 1)
-+    return NULL;
-+
-+  old_chain = make_cleanup (VEC_cleanup (CORE_ADDR), &next_pcs);
-+
-+  arm_get_next_pcs_ctor (&next_pcs_ctx,
-+			 &arm_3ds_get_next_pcs_ops,
-+			 gdbarch_byte_order (gdbarch),
-+			 gdbarch_byte_order_for_code (gdbarch),
-+			 1,
-+			 regcache);
-+
-+  next_pcs = arm_get_next_pcs (&next_pcs_ctx);
-+
-+  for (i = 0; VEC_iterate (CORE_ADDR, next_pcs, i, pc); i++)
-+    {
-+      pc = gdbarch_addr_bits_remove (gdbarch, pc);
-+      VEC_replace (CORE_ADDR, next_pcs, i, pc);
-+    }
-+
-+  discard_cleanups (old_chain);
-+
-+  return next_pcs;
-+}
-+
 +static LONGEST
 +arm_3ds_get_syscall_number (struct gdbarch *gdbarch,
-+			      ptid_t ptid)
++			      thread_info *thread)
 +{
-+  struct regcache *regs = get_thread_regcache (ptid);
++  struct regcache *regs = get_thread_regcache (thread);
 +
 +  ULONGEST pc;
 +  ULONGEST cpsr;
@@ -183,6 +172,108 @@ index 0000000000..ad014e28db
 +  return svc_number;
 +}
 +
++/* Implement the breakpoint_kind_from_pc gdbarch method.  */
++
++static int
++arm_3ds_breakpoint_kind_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pcptr)
++{
++  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
++  enum bfd_endian byte_order_for_code = gdbarch_byte_order_for_code (gdbarch);
++
++  if (arm_pc_is_thumb (gdbarch, *pcptr))
++    {
++      *pcptr = UNMAKE_THUMB_ADDR (*pcptr);
++
++      /* If we have a separate 32-bit breakpoint instruction for Thumb-2,
++	 check whether we are replacing a 32-bit instruction.  */
++      if (tdep->thumb2_breakpoint != NULL)
++	{
++	  gdb_byte buf[2];
++
++	  if (target_read_memory (*pcptr, buf, 2) == 0)
++	    {
++	      unsigned short inst1;
++
++	      inst1 = extract_unsigned_integer (buf, 2, byte_order_for_code);
++	      if (thumb_insn_size (inst1) == 4)
++		return ARM_BP_KIND_THUMB2;
++	    }
++	}
++
++      return ARM_BP_KIND_THUMB;
++    }
++  else
++    return ARM_BP_KIND_ARM;
++
++}
++
++/* Implement the sw_breakpoint_from_kind gdbarch method.  */
++
++static const gdb_byte *
++arm_3ds_sw_breakpoint_from_kind (struct gdbarch *gdbarch, int kind, int *size)
++{
++  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
++
++  switch (kind)
++    {
++    case ARM_BP_KIND_ARM:
++      *size = tdep->arm_breakpoint_size;
++      return tdep->arm_breakpoint;
++    case ARM_BP_KIND_THUMB:
++      *size = tdep->thumb_breakpoint_size;
++      return tdep->thumb_breakpoint;
++    case ARM_BP_KIND_THUMB2:
++      *size = tdep->thumb2_breakpoint_size;
++      return tdep->thumb2_breakpoint;
++    default:
++      gdb_assert_not_reached ("unexpected arm breakpoint kind");
++    }
++}
++
++/* Implement the breakpoint_kind_from_current_state gdbarch method.  */
++
++static int
++arm_3ds_breakpoint_kind_from_current_state (struct gdbarch *gdbarch,
++					struct regcache *regcache,
++					CORE_ADDR *pcptr)
++{
++  gdb_byte buf[4];
++
++  /* Check the memory pointed by PC is readable.  */
++  if (target_read_memory (regcache_read_pc (regcache), buf, 4) == 0)
++    {
++      struct arm_get_next_pcs next_pcs_ctx;
++
++      arm_get_next_pcs_ctor (&next_pcs_ctx,
++			     &arm_3ds_get_next_pcs_ops,
++			     gdbarch_byte_order (gdbarch),
++			     gdbarch_byte_order_for_code (gdbarch),
++			     0,
++			     regcache);
++
++      std::vector<CORE_ADDR> next_pcs = arm_get_next_pcs (&next_pcs_ctx);
++
++      /* If MEMADDR is the next instruction of current pc, do the
++	 software single step computation, and get the thumb mode by
++	 the destination address.  */
++      for (CORE_ADDR pc : next_pcs)
++	{
++	  if (UNMAKE_THUMB_ADDR (pc) == *pcptr)
++	    {
++	      if (IS_THUMB_ADDR (pc))
++		{
++		  *pcptr = MAKE_THUMB_ADDR (*pcptr);
++		  return arm_3ds_breakpoint_kind_from_pc (gdbarch, pcptr);
++		}
++	      else
++		return ARM_BP_KIND_ARM;
++	    }
++	}
++    }
++
++  return arm_3ds_breakpoint_kind_from_pc (gdbarch, pcptr);
++}
++
 +static void
 +arm_3ds_init_abi (struct gdbarch_info info,
 +			    struct gdbarch *gdbarch)
@@ -207,13 +298,16 @@ index 0000000000..ad014e28db
 +  /* Single stepping.  */
 +  set_gdbarch_software_single_step (gdbarch, arm_3ds_software_single_step);
 +
++  /* Breakpoint manipulation.  */
++  set_gdbarch_breakpoint_kind_from_pc (gdbarch, arm_3ds_breakpoint_kind_from_pc);
++  set_gdbarch_sw_breakpoint_from_kind (gdbarch, arm_3ds_sw_breakpoint_from_kind);
++  set_gdbarch_breakpoint_kind_from_current_state (gdbarch,
++						  arm_3ds_breakpoint_kind_from_current_state);
++
 +  /* `catch syscall' */
 +  set_xml_syscall_file_name (gdbarch, "syscalls/arm-3ds.xml");
 +  set_gdbarch_get_syscall_number (gdbarch, arm_3ds_get_syscall_number);
 +}
-+
-+/* Provide a prototype to silence -Wmissing-prototypes.  */
-+extern initialize_file_ftype _initialize_arm_3ds_tdep;
 +
 +void
 +_initialize_arm_3ds_tdep (void)
@@ -222,22 +316,20 @@ index 0000000000..ad014e28db
 +                          arm_3ds_init_abi);
 +}
 diff --git a/gdb/configure.tgt b/gdb/configure.tgt
-index fdcb7b1d69..d8fd1622b8 100644
+index f197160896..e2835ddef5 100644
 --- a/gdb/configure.tgt
 +++ b/gdb/configure.tgt
-@@ -119,8 +119,8 @@ arm*-*-symbianelf*)
- 	gdb_target_obs="arm.o arm-get-next-pcs.o arm-tdep.o arm-symbian-tdep.o"
- 	;;
- arm*-*-*)
--	# Target: ARM embedded system
--	gdb_target_obs="arm.o arm-get-next-pcs.o arm-tdep.o"
-+	# Target: ARM embedded system (+ 3DS)
-+	gdb_target_obs="arm.o arm-get-next-pcs.o arm-tdep.o arm-3ds-tdep.o"
- 	gdb_sim=../sim/arm/libsim.a
+@@ -61,7 +61,7 @@ arc*-*-*)
  	;;
  
+ arm*-*-*)
+-	cpu_obs="arch/arm.o arch/arm-get-next-pcs.o arm-tdep.o";;
++	cpu_obs="arch/arm.o arch/arm-get-next-pcs.o arm-tdep.o arm-3ds-tdep.o";;
+ 
+ hppa*-*-*)
+ 	# Target: HP PA-RISC
 diff --git a/gdb/data-directory/Makefile.in b/gdb/data-directory/Makefile.in
-index 304d4b05c0..2cf8986d3a 100644
+index 753e0b69a3..645eb043b9 100644
 --- a/gdb/data-directory/Makefile.in
 +++ b/gdb/data-directory/Makefile.in
 @@ -63,7 +63,7 @@ GEN_SYSCALLS_FILES = \
@@ -250,10 +342,10 @@ index 304d4b05c0..2cf8986d3a 100644
  PYTHON_DIR = python
  PYTHON_INSTALL_DIR = $(DESTDIR)$(GDB_DATADIR)/$(PYTHON_DIR)
 diff --git a/gdb/defs.h b/gdb/defs.h
-index a0b586f401..a1508fd5b3 100644
+index fc4217005a..a179a6d820 100644
 --- a/gdb/defs.h
 +++ b/gdb/defs.h
-@@ -604,6 +604,7 @@ enum gdb_osabi
+@@ -495,6 +495,7 @@ enum gdb_osabi
    GDB_OSABI_LYNXOS178,
    GDB_OSABI_NEWLIB,
    GDB_OSABI_SDE,
@@ -261,11 +353,24 @@ index a0b586f401..a1508fd5b3 100644
  
    GDB_OSABI_INVALID		/* keep this last */
  };
+diff --git a/gdb/dtrace-probe.c b/gdb/dtrace-probe.c
+index fa4e06e794..b6afc4cc7c 100644
+--- a/gdb/dtrace-probe.c
++++ b/gdb/dtrace-probe.c
+@@ -100,7 +100,7 @@ public:
+ 
+ /* DTrace static_probe_ops.  */
+ 
+-const dtrace_static_probe_ops dtrace_static_probe_ops;
++const dtrace_static_probe_ops dtrace_static_probe_ops = {};
+ 
+ /* The following structure represents a dtrace probe.  */
+ 
 diff --git a/gdb/osabi.c b/gdb/osabi.c
-index 84fa9c0273..c1c4bb1672 100644
+index 7d0540b181..49d3f78331 100644
 --- a/gdb/osabi.c
 +++ b/gdb/osabi.c
-@@ -79,6 +79,7 @@ static const struct osabi_names gdb_osabi_names[] =
+@@ -80,6 +80,7 @@ static const struct osabi_names gdb_osabi_names[] =
    { "LynxOS178", NULL },
    { "Newlib", NULL },
    { "SDE", NULL },
@@ -273,6 +378,45 @@ index 84fa9c0273..c1c4bb1672 100644
  
    { "<invalid>", NULL }
  };
+diff --git a/gdb/probe.c b/gdb/probe.c
+index 1f3da213ef..4acbeb8704 100644
+--- a/gdb/probe.c
++++ b/gdb/probe.c
+@@ -60,7 +60,7 @@ public:
+ 
+ /* Static operations associated with a generic probe.  */
+ 
+-const any_static_probe_ops any_static_probe_ops;
++const any_static_probe_ops any_static_probe_ops = {};
+ 
+ /* A helper for parse_probes that decodes a probe specification in
+    SEARCH_PSPACE.  It appends matching SALs to RESULT.  */
+diff --git a/gdb/record-btrace.c b/gdb/record-btrace.c
+index 09a3f6cc5c..9f90a6b436 100644
+--- a/gdb/record-btrace.c
++++ b/gdb/record-btrace.c
+@@ -144,7 +144,7 @@ static record_btrace_target record_btrace_ops;
+ 
+ /* Token associated with a new-thread observer enabling branch tracing
+    for the new thread.  */
+-static const gdb::observers::token record_btrace_thread_observer_token;
++static const gdb::observers::token record_btrace_thread_observer_token = {};
+ 
+ /* Memory access types used in set/show record btrace replay-memory-access.  */
+ static const char replay_memory_access_read_only[] = "read-only";
+diff --git a/gdb/stap-probe.c b/gdb/stap-probe.c
+index ed7e1a0d3f..42fad3835f 100644
+--- a/gdb/stap-probe.c
++++ b/gdb/stap-probe.c
+@@ -119,7 +119,7 @@ public:
+ 
+ /* SystemTap static_probe_ops.  */
+ 
+-const stap_static_probe_ops stap_static_probe_ops;
++const stap_static_probe_ops stap_static_probe_ops = {};
+ 
+ class stap_probe : public probe
+ {
 diff --git a/gdb/syscalls/arm-3ds.xml b/gdb/syscalls/arm-3ds.xml
 new file mode 100644
 index 0000000000..48780b7bd5
@@ -438,4 +582,16 @@ index 0000000000..48780b7bd5
 +  <syscall name="TranslateHandle" number="178" groups="custom,synchronization,ipc,thread,process,debug"/>
 +
 +</syscalls_info>
-
+diff --git a/gdb/tui/tui-hooks.c b/gdb/tui/tui-hooks.c
+index efa02e2f08..1c341dcf47 100644
+--- a/gdb/tui/tui-hooks.c
++++ b/gdb/tui/tui-hooks.c
+@@ -205,7 +205,7 @@ tui_normal_stop (struct bpstats *bs, int print_frame)
+ 
+ /* Token associated with observers registered while TUI hooks are
+    installed.  */
+-static const gdb::observers::token tui_observers_token;
++static const gdb::observers::token tui_observers_token = {};
+ 
+ /* Attach or detach a single observer, according to ATTACH.  */
+ 
