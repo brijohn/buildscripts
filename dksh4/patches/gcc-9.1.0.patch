@@ -1,0 +1,105 @@
+diff -Naur gcc-8.1.0.orig/gcc/config/sh/exword.h gcc-8.1.0/gcc/config/sh/exword.h
+--- gcc-8.1.0.orig/gcc/config/sh/exword.h	1969-12-31 19:00:00.000000000 -0500
++++ gcc-8.1.0/gcc/config/sh/exword.h	2018-05-20 22:58:18.998187000 -0400
+@@ -0,0 +1,79 @@
++/* Definitions of target machine for gcc for Super-H using sh-exword-elf.
++   Copyright (C) 2001, 2006, 2007 Free Software Foundation, Inc.
++
++This file is part of GNU CC.
++
++GNU CC is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 3, or (at your option)
++any later version.
++
++GNU CC is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++
++#ifndef _EXWORD_H
++#define _EXWORD_H
++#endif
++
++#define LIB_DEFAULT_SPEC "--start-group -lnosys -lc --end-group"
++#define LINK_DEFAULT_SPEC ""
++#define CPP_DEFAULT_SPEC ""
++#define STARTFILE_DEFAULT_SPEC \
++  "%{!shared: crt1.o%s} crti.o%s \
++   %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
++
++#define ENDFILE_DEFAULT_SPEC \
++  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
++
++#undef LIB_SPEC
++#define	LIB_SPEC "\
++%{mexword      : %(lib_exword) ; \
++               : %(lib_default)}"
++
++#undef	STARTFILE_SPEC
++#define	STARTFILE_SPEC "\
++%{mexword      : %(startfile_exword)      ; \
++               : %(startfile_default)     }"
++
++#undef ENDFILE_SPEC
++#define ENDFILE_SPEC "\
++%{mexword      : %(endfile_exword)      ; \
++               : %(endfile_default)     }"
++
++#undef SUBTARGET_LINK_SPEC
++#define SUBTARGET_LINK_SPEC "\
++%{mexword      : %(link_exword)            ; \
++               : %(link_default)           }"
++
++#undef	SUBTARGET_CPP_SPEC
++#define	SUBTARGET_CPP_SPEC "\
++%{mexword      : %(cpp_exword)         ; \
++               : %(cpp_default)        }"
++
++#define LIB_EXWORD_SPEC "--start-group -lsysbase -ldataplus -lc --end-group"
++#define	STARTFILE_EXWORD_SPEC ""
++#define	ENDFILE_EXWORD_SPEC ""
++#define LINK_EXWORD_SPEC "-L %:getenv(DEVKITPRO /libdataplus/lib)  -T exword.ld%s"
++#define CPP_EXWORD_SPEC "-I %:getenv(DEVKITPRO /libdataplus/include) -D__exword__"
++
++#undef SUBTARGET_EXTRA_SPECS
++#define SUBTARGET_EXTRA_SPECS \
++{ "startfile_default", STARTFILE_DEFAULT_SPEC }, \
++{ "endfile_default", ENDFILE_DEFAULT_SPEC }, \
++{ "link_default", LINK_DEFAULT_SPEC }, \
++{ "lib_default", LIB_DEFAULT_SPEC }, \
++{ "cpp_default", CPP_DEFAULT_SPEC }, \
++{ "startfile_exword", STARTFILE_EXWORD_SPEC }, \
++{ "endfile_exword", ENDFILE_EXWORD_SPEC }, \
++{ "lib_exword", LIB_EXWORD_SPEC }, \
++{ "link_exword", LINK_EXWORD_SPEC }, \
++{ "cpp_exword", CPP_EXWORD_SPEC }
++
++
+diff -Naur gcc-8.1.0.orig/gcc/config/sh/exword.opt gcc-8.1.0/gcc/config/sh/exword.opt
+--- gcc-8.1.0.orig/gcc/config/sh/exword.opt	1969-12-31 19:00:00.000000000 -0500
++++ gcc-8.1.0/gcc/config/sh/exword.opt	2018-05-20 22:58:18.998187000 -0400
+@@ -0,0 +1,5 @@
++
++
++mexword
++Target RejectNegative
++link using exword linker script.
+diff -Naur gcc-8.1.0.orig/gcc/config.gcc gcc-8.1.0/gcc/config.gcc
+--- gcc-8.1.0.orig/gcc/config.gcc	2018-04-27 15:31:35.000000000 -0400
++++ gcc-8.1.0/gcc/config.gcc	2018-05-20 22:58:18.998187000 -0400
+@@ -2774,7 +2774,8 @@
+ 			   && test x$with_libgloss = xyes; then
+ 				tm_file="${tm_file} sh/newlib.h"
+ 			fi
+-			tm_file="${tm_file} sh/embed-elf.h" ;;
++			tm_file="${tm_file} sh/embed-elf.h sh/exword.h"
++			extra_options="${extra_options} sh/exword.opt" ;;
+ 	esac
+ 	case ${target} in
+ 	*-*-netbsd)

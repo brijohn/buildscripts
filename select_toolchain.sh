@@ -65,10 +65,10 @@ case "$VERSION" in
     toolchain=DEVKITA64
   ;;
   "4" )
-    GCC_VER=8.1.0
-    BINUTILS_VER=2.30
+    GCC_VER=8.3.0
+    BINUTILS_VER=2.32
     NEWLIB_VER=1.20.0
-    GDB_VER=8.0
+    GDB_VER=8.2.1
     basedir='dksh4'
     package=devkitSH4
     target=sh-elf
